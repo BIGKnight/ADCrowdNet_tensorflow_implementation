@@ -1,3 +1,4 @@
 {
-    "python.pythonPath": "/home/zzn/SANet_implementation-master/bin/python"
+    "python.pythonPath": "/home/zzn/SANet_implementation-master/bin/python",
+    "C_Cpp.dimInactiveRegions": false
 }

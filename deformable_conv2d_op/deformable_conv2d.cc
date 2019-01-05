@@ -213,8 +213,8 @@ class DeformableConv2DOp : public OpKernel{
 
         // Output tensor is of the following dimensions:
         // [ in_batch, out_depth, out_rows, out_cols]
-        Tensor* output = nullptr;
-        OP_REQUIRES_OK(context, context->allocate_output(0, out_shape, &output));
+        // Tensor* output = nullptr;
+        // OP_REQUIRES_OK(context, context->allocate_output(0, out_shape, &output));
         VLOG(2) << "DeformableConv2D: in_depth = " << dimensions.in_depth
             << ", patch_depth = " << dimensions.patch_depth
             << ", input_cols = " << dimensions.input_cols
@@ -278,14 +278,18 @@ class DeformableConv2DOp : public OpKernel{
 
         // Tensor<xpu, 3, DType> col_buffer_3d = col_buffer.get_with_shape<xpu, 3, DType>(Shape3(group_, K, N), s);
         // auto col_buf_3d_shape = TensorShape({group_, K, N});
-        Tensor col_buffer_3d;
-        OP_REQUIRES_OK(context, context->allocate_temp(DataTypeToEnum<T>::value, TensorShape({group_, K, N}), &col_buffer_3d));
-        auto col_buffer_3d_ptr = col_buffer_3d.template flat<T>().data();
+        // Tensor col_buffer_3d;
+        // OP_REQUIRES_OK(context, context->allocate_temp(DataTypeToEnum<T>::value, TensorShape({group_, K, N}), &col_buffer_3d));
+        // auto col_buffer_3d_ptr = col_buffer_3d.template flat<T>().data();
 
         
         // Tensor<xpu, 4, DType> output_4d = output_buffer.get_with_shape<xpu, 4, DType>(Shape4(num_ / im2col_step_, group_, M, N), s);
         Tensor output_temp_4d;
-        OP_REQUIRES_OK(context, context->allocate_temp(DataTypeToEnum<T>::value, TensorShape({num_ / im2col_step_, group_, M, N}), &output_temp_4d));
+        OP_REQUIRES_OK(context, context->allocate_output(DataTypeToEnum<T>::value, out_shape, &output_temp_4d));
+        /**
+         * 这样的话下面计算矩阵乘法的时候直接就写到这个输出里了
+         * 但是注意的是作者实现的时候划分ｓｔｅｐ，这个时候其实是往ｓｈａｐｅ为｛num_ / im2col_step_, group_, M, N｝的输出里写的，所以最后一定要置换一下维度的位置
+         * **/
         T* output_temp_4d_ptr = output_temp_4d.template flat<T>.data();
 
     TShape pads;
@@ -314,15 +318,15 @@ class DeformableConv2DOp : public OpKernel{
         auto weight_3d_group_shape = TensorShape({1, M, K});
         auto weight_3d_group_ptr = weight_3d_ptr + g * K * M;
         auto col_buffer_group_3d_shape = TensorShape({1, K, N});
-        auto col_buffer_group_3d_ptr = col_buffer_3d_ptr + g * K * N;
+        auto col_buffer_group_3d_ptr = col_buffer_ptr + g * K * N;
         auto output_temp_group_ptr = output_temp_4d_ptr + (n * (num_ / im2col_step_) + g) * M * N;
         LaunchBatchMatMul<GPUDevice, T>(context, weight_3d_group_shape, col_buffer_group_3d_shape, weight_3d_group_ptr, col_buffer_group_3d_ptr, false, false, output_temp_group_ptr);
       }
     }
 
-    Tensor<xpu, 4, DType> trans_output_4d = output_buffer.get_with_shape<xpu, 4, DType>(Shape4(num_ / im2col_step_, conv_out_channels_, im2col_step_, conv_out_spatial_dim_), s);
+    // Tensor<xpu, 4, DType> trans_output_4d = output_buffer.get_with_shape<xpu, 4, DType>(Shape4(num_ / im2col_step_, conv_out_channels_, im2col_step_, conv_out_spatial_dim_), s);
 
-    Tensor<xpu, 4, DType> original_output_4d = out_data[dmconv::kOut].get_with_shape<xpu, 4, DType>(Shape4(num_ / im2col_step_, im2col_step_, conv_out_channels_, conv_out_spatial_dim_), s);
+    // Tensor<xpu, 4, DType> original_output_4d = out_data[dmconv::kOut].get_with_shape<xpu, 4, DType>(Shape4(num_ / im2col_step_, im2col_step_, conv_out_channels_, conv_out_spatial_dim_), s);
 
     original_output_4d = swapaxis<2, 1>(trans_output_4d); // 往out_data里写, 交换顺序　
 

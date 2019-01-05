@@ -249,12 +249,12 @@ class DeformableConv2DOp : public OpKernel{
         col_buffer_shape[0] = ProdShape(filter_shape, 0, filter_shape.dims() - 1); // 卷积核的参数个数
 
         col_buffer_shape[1] = im2col_step_;
-        for (index_t i = 2; i < col_buffer_shape.size(); ++i) {
+        for (int32_t i = 2; i < col_buffer_shape.size(); ++i) {
             col_buffer_shape[i] = out_shape.dim_size(i);
         } // 记录空间形状
 
         Tensor col_buffer;
-        OP_REQUIRES_OK(context, context->allocate_temp(DataTypeToEnum<T>::value, col_buffer_shape, &col_buffer);
+        OP_REQUIRES_OK(context, context->allocate_temp(DataTypeToEnum<T>::value, col_buffer_shape, &col_buffer));
         auto col_buffer_ptr = col_buffer.template flat<T>().data();
 
     // TBlob col_buffer(workspace.dptr_, col_buffer_shape, xpu::kDevMask, DataType<DType>::kFlag); // create a column buffer using workspace and col_buffer_shape
@@ -267,9 +267,9 @@ class DeformableConv2DOp : public OpKernel{
     // TBlob output_buffer(workspace.dptr_ + col_buffer_size_, output_buffer_shape, xpu::kDevMask, DataType<DType>::kFlag);
 
         
-        index_t M = conv_out_channels_ / group_; // filter的数量
-        index_t N = im2col_step_ * conv_out_spatial_dim_; // 我不是很理解这里的im2col_step_
-        index_t K = kernel_dim_; // 卷积的参数个数
+        int32_t M = conv_out_channels_ / group_; // filter的数量
+        int32_t N = im2col_step_ * conv_out_spatial_dim_; // 我不是很理解这里的im2col_step_
+        int32_t K = kernel_dim_; // 卷积的参数个数
 
         // Tensor<xpu, 3, DType> weight_3d = in_data[dmconv::kWeight].get_with_shape<xpu, 3, DType>(Shape3(group_, M, K), s);
         Tensor weight_3d;
@@ -286,12 +286,12 @@ class DeformableConv2DOp : public OpKernel{
         // Tensor<xpu, 4, DType> output_4d = output_buffer.get_with_shape<xpu, 4, DType>(Shape4(num_ / im2col_step_, group_, M, N), s);
         Tensor output_temp_4d;
         OP_REQUIRES_OK(context, context->allocate_temp(DataTypeToEnum<T>::value, TensorShape({num_ / im2col_step_, group_, M, N}), &output_temp_4d));
-        
+        T* output_temp_4d_ptr = output_temp_4d.template flat<T>.data();
 
     TShape pads;
     pads.push_back(dimensions.pad_rows);
     pads.push_back(dimensions.pad_cols);
-    for (index_t n = 0; n < num_ / im2col_step_; ++n) { // 分batch进行
+    for (int32_t n = 0; n < num_ / im2col_step_; ++n) { // 分batch进行
       // transform image to col_buffer in order to use gemm
         DeformableConv2DIm2Col( // 这里是一张图片一张图片的送的
             d, in_data_ptr + n * im2col_step_ * input_dim_, // dptr是获取输入数据的指针 + n * im2col_step_* input_dim 是让指针向后移动 一张图片的数据
@@ -306,11 +306,17 @@ class DeformableConv2DOp : public OpKernel{
             params_.deformable_groups,
             col_buffer_ptr
             );
-      Tensor<xpu, 3, DType> output_3d = output_4d[n];
-      for (index_t g = 0; g < group_; ++g) {
+    //   Tensor<xpu, 3, DType> output_3d = output_4d[n];
+      for (int32_t g = 0; g < group_; ++g) {
         // Legacy approach shown here for comparison:
         //   Assign(output_3d[g], req[dmconv::kOut], dot(weight_3d[g], col_buffer_3d[g]));
-        linalg_gemm(weight_3d[g], col_buffer_3d[g], output_3d[g], false, false, s, kWriteTo); //将得到的做点乘法
+        // linalg_gemm(weight_3d[g], col_buffer_3d[g], output_3d[g], false, false, s, kWriteTo); //将得到的做点乘法
+        auto weight_3d_group_shape = TensorShape({1, M, K});
+        auto weight_3d_group_ptr = weight_3d_ptr + g * K * M;
+        auto col_buffer_group_3d_shape = TensorShape({1, K, N});
+        auto col_buffer_group_3d_ptr = col_buffer_3d_ptr + g * K * N;
+        auto output_temp_group_ptr = output_temp_4d_ptr + (n * (num_ / im2col_step_) + g) * M * N;
+        LaunchBatchMatMul<GPUDevice, T>(context, weight_3d_group_shape, col_buffer_group_3d_shape, weight_3d_group_ptr, col_buffer_group_3d_ptr, false, false, output_temp_group_ptr);
       }
     }
 
@@ -334,35 +340,35 @@ class DeformableConv2DOp : public OpKernel{
     DeformableConv2DParameters params_;
     bool use_cudnn_;
     bool cudnn_use_autotune_;
-    index_t channel_axis_;  // channel axis of the input
-    index_t channels_;  // number of channels of input image
-    index_t num_spatial_axes_;  // number of spatial axes
-    index_t num_;  // batch size
-    index_t group_;  // number of groups
-    index_t conv_out_channels_;  // number of output channels (num_filter)
-    index_t conv_out_spatial_dim_;  // number of pixels of output images per channel
-    index_t conv_in_channels_;  // number of input channels
-    index_t kernel_dim_;  // number of input channels per group * kernel size
-    index_t weight_offset_;  // number of output channels per group * kernel_dim_
-    index_t col_offset_;
-    index_t output_offset_;
-    index_t col_buffer_size_;
-    index_t input_dim_;
-    index_t input_offset_dim_;
-    index_t input_mask_dim_;
-    index_t output_dim_;
-    index_t num_kernels_im2col_;
-    index_t num_kernels_col2im_;
-    index_t im2col_step_;
+    int32_t channel_axis_;  // channel axis of the input
+    int32_t channels_;  // number of channels of input image
+    int32_t num_spatial_axes_;  // number of spatial axes
+    int32_t num_;  // batch size
+    int32_t group_;  // number of groups
+    int32_t conv_out_channels_;  // number of output channels (num_filter)
+    int32_t conv_out_spatial_dim_;  // number of pixels of output images per channel
+    int32_t conv_in_channels_;  // number of input channels
+    int32_t kernel_dim_;  // number of input channels per group * kernel size
+    int32_t weight_offset_;  // number of output channels per group * kernel_dim_
+    int32_t col_offset_;
+    int32_t output_offset_;
+    int32_t col_buffer_size_;
+    int32_t input_dim_;
+    int32_t input_offset_dim_;
+    int32_t input_mask_dim_;
+    int32_t output_dim_;
+    int32_t num_kernels_im2col_;
+    int32_t num_kernels_col2im_;
+    int32_t im2col_step_;
     bool bias_term_;  // has bias term?
     bool is_1x1_;
     void LayerSetUp(const TensorShape& ishape, const TensorShape& filter_shape, const TensorShape& offset_shape, const TensorShape& mask_shape, const TensorShape& oshape) {
         channel_axis_ = 1;  // hard code channel axis, fixed the input data_format
-        const index_t first_spatial_axis = channel_axis_ + 1;
-        const index_t num_axes = filter_shape.dims(); //假设kernel的ndim = 2, 那么输入的ndim就是 4
+        const int32_t first_spatial_axis = channel_axis_ + 1;
+        const int32_t num_axes = filter_shape.dims(); //假设kernel的ndim = 2, 那么输入的ndim就是 4
         num_spatial_axes_ = num_axes - first_spatial_axis; //表示的是空间坐标个数,比如说2维卷积里,就是2, 3维卷积里就是3
         is_1x1_ = true; //  判断是否为1x1卷积
-        for (index_t i = 0; i < filter_shape.dims() - 2; ++i) {
+        for (int32_t i = 0; i < filter_shape.dims() - 2; ++i) {
             // is_1x1_ &= filter_shape.dim_size(i) == 1 && params_.stride[i] == 1 && params_.pad[i] == 0;
             is_1x1_ &= filter_shape.dim_size(i) == 1; // only judge by the filter's shape
             if (!is_1x1_) break;

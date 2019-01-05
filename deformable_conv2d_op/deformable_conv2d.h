@@ -26,43 +26,8 @@ inline int ProdShape(const TShape &shape, int start, int end) {
     return res;
 }    
 
-inline int ProdShape(const TensorShape &shape, int start, int end) {
-    int64 res = 1;
-    for(int i=start; i<end; i++) {
-        res*=shape.dim_size(i);
-    }
-    return res;
-}    
-
-inline std::vector<int> ToVector(const TensorShape &shape) {
-    // int64 res = 1;
-    std::vector<int> res;
-    for(int i=0; i<shape.dims(); i++) {
-        res.push_back(shape.dim_size(i));
-    }
-    return res;
-}
-
-inline TShape ToVector(const TShape &shape) {
-    // int64 res = 1;
-    return shape;
-}
-
-inline TShape SubVector(cons TShape &shape, int start, int end){
-    TShape res;
-    for(int i = start;i<end;i++){
-        res.push_back(shape[i])
-    }
-    return res;
-} 
-
-inline TShape SubVector(cons TensorShape &shape, int start, int end){
-    TShape res;
-    for(int i = start;i<end;i++){
-        res.push_back(shape.dim_size(i))
-    }
-    return res;
-} 
+template <typename Device, typename Scalar>
+struct LaunchBatchMatMul;
 
 struct DeformableConv2DParameters {
   TShape dilations;

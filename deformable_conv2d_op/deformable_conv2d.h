@@ -74,6 +74,11 @@ inline void DeformableConv2DCol2ImCoord(CPUDevice& d, const DType* data_col, con
   }
 
 template <typename DType>
+inline void SwapAxis(CPUDevice& d, DType* input_data, const TShape& origin_shape, const int axis_x, const int axis_y){
+    LOG(FATAL) << "only implemented in GPU";
+} 
+
+template <typename DType>
 inline void DeformableConv2DCol2Im(CPUDevice& d, 
     const DType* data_col, const DType* data_offset, const DType* data_mask,
     const TShape& im_shape, const TShape& col_shape, const TShape& kernel_shape,
@@ -123,4 +128,8 @@ inline void DeformableConv2DIm2Col(GPUDevice& d,
     const uint32_t deformable_group, DType* data_col);
 #endif
 
+#if GOOGLE_CUDA
+template <typename DType>
+inline void SwapAxis(GPUDevice& d, DType* input_data, const TShape& origin_shape, const int axis_x, const int axis_y);
+#endif
 #endif

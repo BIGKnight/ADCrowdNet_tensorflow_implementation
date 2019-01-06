@@ -14,15 +14,15 @@ typedef std::vector<int32> TShape;
 template<typedef DType>
 __device__ DType dmcn_im2col_bilinear(
     const DType* bottom_data,
-    const int32_t data_width,
-    const int32_t height,
-    const int32_t width,
+    const int data_width,
+    const int height,
+    const int width,
     DType h,
     DType w){
-        int32_t h_low = floor(h);
-        int32_t w_low = floor(w);
-        int32_t h_high = h_low + 1;
-        int32_t w_high = w_low + 1;
+        int h_low = floor(h);
+        int w_low = floor(w);
+        int h_high = h_low + 1;
+        int w_high = w_low + 1;
         DType lh = h - h_low;
         DType lw = w - w_low;
         DType hh = 1 - lh, hw = 1 - lw;
@@ -43,16 +43,16 @@ template<typedef DType>
 __device__ DType dmcn_get_gradient_weight(
     DType argmax_h,　// offset h
     DType argmax_w,　// offset w
-    const int32_t h,  const int32_t w, // coordinate
-    const int32_t height,  const int32_t width){
+    const int h,  const int w, // coordinate
+    const int height,  const int width){
   if (argmax_h <= -1 || argmax_h >= height || argmax_w <= -1 || argmax_w >= width) {
     //empty
     return 0;
   }
-  int32_t argmax_h_low = floor(argmax_h);
-  int32_t argmax_w_low = floor(argmax_w);
-  int32_t argmax_h_high = argmax_h_low + 1;
-  int32_t argmax_w_high = argmax_w_low + 1;
+  int argmax_h_low = floor(argmax_h);
+  int argmax_w_low = floor(argmax_w);
+  int argmax_h_high = argmax_h_low + 1;
+  int argmax_w_high = argmax_w_low + 1;
   DType weight = 0;
   if (h == argmax_h_low && w == argmax_w_low) weight = (h + 1 - argmax_h) * (w + 1 - argmax_w); //1 - (argmax - h)
   if (h == argmax_h_low && w == argmax_w_high) weight = (h + 1 - argmax_h) * (argmax_w + 1 - w);
@@ -65,11 +65,11 @@ template <typename DType>
 __device__ DType dmcn_get_coordinate_weight(
     DType argmax_h,
     DType argmax_w,
-    const int32_t height,
-    const int32_t width,
+    const int height,
+    const int width,
     const DType* im_data,
-    const int32_t data_width,
-    const int32_t bp_dir
+    const int data_width,
+    const int bp_dir
     ) {
 
   if (argmax_h <= -1 || argmax_h >= height || argmax_w <= -1 || argmax_w >= width)
@@ -78,10 +78,10 @@ __device__ DType dmcn_get_coordinate_weight(
     return 0;
   }
 
-  int32_t argmax_h_low = floor(argmax_h);
-  int32_t argmax_w_low = floor(argmax_w);
-  int32_t argmax_h_high = argmax_h_low + 1;
-  int32_t argmax_w_high = argmax_w_low + 1;
+  int argmax_h_low = floor(argmax_h);
+  int argmax_w_low = floor(argmax_w);
+  int argmax_h_high = argmax_h_low + 1;
+  int argmax_w_high = argmax_w_low + 1;
   
   DType weight = 0;
 
@@ -118,39 +118,90 @@ __device__ DType dmcn_get_coordinate_weight(
 }
 
 template <typename DType>
+__global__ void SwapAxisKernel(
+    const int n, 
+    const int cuda_mem_size, const int min_unit_size,
+    DType* input_data,
+    const int dim_num, 
+    const int axis_x_dims, const int axis_y_dims, 
+    const int axis_x, const int axis_y){
+    CUDA_1D_KERNEL_LOOP(index, n){
+        size_t size = cuda_mem_size * sizeof(DType);
+        DType *device_data = NULL;
+        cudaMalloc((void**)&device_data, size);
+        DType* input_data_ptr = input_data + index * cuda_mem_size;
+        for(int j =0;j<axis_y_dims;j++){
+            for(int i=0;i<axis_x_dims;i++){
+                DType* temp_ptr = input_data_ptr + (i * axis_x_dims + j) * min_unit_size;
+                cudaMemcpy(device_data + (j * axis_y_dims + i) * min_unit_size, temp_ptr, sizeof(DType)*min_unit_size, cudaMemcpyHostToDevice);
+            }
+        }
+        checkCudaErrors(cudaMemcpy(input_data_ptr, device_data, size, cudaMemcpyDeviceToHost));
+    }
+}
+
+template <typename DType>
+inline void SwapAxis(GPUDevice& d, DType* input_data, const TShape& origin_shape, const int axis_x, const int axis_y){
+    if (axis_x > axis_y){
+        LOG(FATAL) << "Axis_x must be bigger or equal to Axis_y";
+        return;
+    }
+    else if(axis_x == axis_y) return;
+    else if((axis_x + 1) != axis_y){
+        LOG(FATAL) << "Axis_x must be adjacent to Axis_y";
+        return;
+    }
+    int num_kernels = 1;
+    for(int i = 0;i<axis_x;i++){
+        num_kernels *= origin_shape[i];
+    }
+    int cuda_mem_size = 1;
+        for (int i = axis_x;i<origin_shape.size();i++){
+            cuda_mem_size *= origin_shape[i]];
+        }
+    int min_unit_size = 1;
+    for(int i = axis_y + 1;i<origin_shape.size();i++){
+        min_unit_size *= origin_shape[i];
+    }
+    CudaLaunchConfig config = GetCudaLaunchConfig(num_kernels, d);
+    SwapAxisKernel<DType><<<config.block_count, config.thread_per_block,
+                 0, d.stream()>>>(num_kernels,cuda_mem_size,min_unit_size, input_data, origin_shape.size(), origin_shape[axis_x], origin_shape[axis_y], axis_x, axis_y);
+}
+
+template <typename DType>
 __global__ void DeformableConv2DIm2ColKernel(
-    const int32_t n,  
+    const int n,  
     const DType* data_im,
     const DType* data_offset,
     const DType* data_mask,
 
-    const int32_t height,　const int32_t width,
-    const int32_t kernel_h,　const int32_t kernel_w,
-    const int32_t pad_h,　const int32_t pad_w,
-    const int32_t stride_h, const int32_t stride_w,
-    const int32_t dilation_h, const int32_t dilation_w,
+    const int height,　const int width,
+    const int kernel_h,　const int kernel_w,
+    const int pad_h,　const int pad_w,
+    const int stride_h, const int stride_w,
+    const int dilation_h, const int dilation_w,
 
-    const int32_t channel_per_deformable_group, // 输入图通道数除以deformable_group的数量,
-    const int32_t batch_size, const int32_t num_channels, const int32_t deformable_group, //这里的batch_size代表的是im2col_step_, 一般就设为1了
-    const int32_t height_col, const int32_t width_col, 
+    const int channel_per_deformable_group, // 输入图通道数除以deformable_group的数量,
+    const int batch_size, const int num_channels, const int deformable_group, //这里的batch_size代表的是im2col_step_, 一般就设为1了
+    const int height_col, const int width_col, 
     DType* data_col){
     CUDA_1D_KERNEL_LOOP(index, n){
     // n = K * N / k.Size(), 这里应该是一个线程的运算内容, 所以所谓的卷积就是并行计算kernel喽, 所以一个filter得出一个通道的输出,需要n个kernel操作
     // index index of output matrix
-    const int32_t w_col = index % width_col;
-    const int32_t h_col = (index / width_col) % height_col;
+    const int w_col = index % width_col;
+    const int h_col = (index / width_col) % height_col;
 
-    const int32_t b_col = (index / width_col / height_col) % batch_size; // 为什么这个地方有batch的信息. 我感觉b_col代表的是在第几个通道
+    const int b_col = (index / width_col / height_col) % batch_size; // 为什么这个地方有batch的信息. 我感觉b_col代表的是在第几个通道
 
-    const int32_t c_im = (index / width_col / height_col) / batch_size; // batch_size 可以暂时看做1
+    const int c_im = (index / width_col / height_col) / batch_size; // batch_size 可以暂时看做1
 
-    const int32_t c_col = c_im * kernel_h * kernel_w;
+    const int c_col = c_im * kernel_h * kernel_w;
 
     // compute deformable group index
-    const int32_t deformable_group_index = c_im / channel_per_deformable_group; // 0
+    const int deformable_group_index = c_im / channel_per_deformable_group; // 0
 
-    const int32_t h_in = h_col * stride_h - pad_h; // 这是在计算h_col在输入图上感受野的左上角的位置h_in
-    const int32_t w_in = w_col * stride_w - pad_w; // 这是在计算w_col在输入图上感受野的左上角的位置w_in
+    const int h_in = h_col * stride_h - pad_h; // 这是在计算h_col在输入图上感受野的左上角的位置h_in
+    const int w_in = w_col * stride_w - pad_w; // 这是在计算w_col在输入图上感受野的左上角的位置w_in
 
 
     // 这里在计算指针的位置
@@ -161,10 +212,10 @@ __global__ void DeformableConv2DIm2ColKernel(
     const DType* data_mask_ptr = data_mask + (b_col *  deformable_group + deformable_group_index) * kernel_h * kernel_w * height_col * width_col;
         for (int i = 0; i < kernel_h; ++i) { // 这里貌似kernel大小就是[3, 3]不考虑输入通道的数目, 那确实印证了之前的说法, CUDA_KERNEL_LOOP其实代表的就是一个kernel操作
             for (int j = 0; j < kernel_w; ++j) {
-                const int32_t data_offset_h_ptr = ((2 * (i * kernel_w + j)) * height_col + h_col) * width_col + w_col; //2 * (i * kernel_w + j)代表的是找到对应的通道, 后半部分在找坐标点
+                const int data_offset_h_ptr = ((2 * (i * kernel_w + j)) * height_col + h_col) * width_col + w_col; //2 * (i * kernel_w + j)代表的是找到对应的通道, 后半部分在找坐标点
                 // 其实这个可以写作 2 * (i * kernel_w + j) * height_col * width_col + h_col * width_col + w_col
-                const int32_t data_offset_w_ptr = ((2 * (i * kernel_w + j) + 1) * height_col + h_col) * width_col + w_col;
-                const int32_t data_mask_hw_ptr = ((i * kernel_w + j) * height_col + h_col) * width_col + w_col;
+                const int data_offset_w_ptr = ((2 * (i * kernel_w + j) + 1) * height_col + h_col) * width_col + w_col;
+                const int data_mask_hw_ptr = ((i * kernel_w + j) * height_col + h_col) * width_col + w_col;
                 // 取出偏移和mask
                 const DType offset_h = data_offset_ptr[data_offset_h_ptr];
                 const DType offset_w = data_offset_ptr[data_offset_w_ptr];
@@ -177,8 +228,8 @@ __global__ void DeformableConv2DIm2ColKernel(
                 if (h_im > -1 && w_im > -1 && h_im < height && w_im < width) {
                   //const DType map_h = i * dilation_h + offset_h;
                   //const DType map_w = j * dilation_w + offset_w;
-                  //const int32_t cur_height = height - h_in;
-                  //const int32_t cur_width = width - w_in;
+                  //const int cur_height = height - h_in;
+                  //const int cur_width = width - w_in;
                   //val = dmcn_im2col_bilinear(data_im_ptr, width, cur_height, cur_width, map_h, map_w);
                   val = dmcn_im2col_bilinear(data_im_ptr, width, height, width, h_im, w_im); // 计算插值
                 }
@@ -188,39 +239,39 @@ __global__ void DeformableConv2DIm2ColKernel(
             }
         }    
     }
-}d
+}
 
 template <typename DType>
 __global__ void DeformableConv2DCol2ImKernel(
-    const int32_t n, 
+    const int n, 
     const DType* data_col, const DType* data_offset, const DType* data_mask,
-    const int32_t channels, const int32_t height, const int32_t width,
-    const int32_t kernel_h, const int32_t kernel_w,
-    const int32_t pad_h, const int32_t pad_w,
-    const int32_t stride_h, const int32_t stride_w,
-    const int32_t dilation_h, const int32_t dilation_w,
-    const int32_t channel_per_deformable_group,
-    const int32_t batch_size, const int32_t deformable_group,
-    const int32_t height_col, const int32_t width_col,
+    const int channels, const int height, const int width,
+    const int kernel_h, const int kernel_w,
+    const int pad_h, const int pad_w,
+    const int stride_h, const int stride_w,
+    const int dilation_h, const int dilation_w,
+    const int channel_per_deformable_group,
+    const int batch_size, const int deformable_group,
+    const int height_col, const int width_col,
     DType* grad_im){
     CUDA_1D_KERNEL_LOOP(index, n){
-        const int32_t j = (index / width_col / height_col / batch_size) % kernel_w;
-        const int32_t i = (index / width_col / height_col / batch_size / kernel_w) % kernel_h;
-        const int32_t c = index / width_col / height_col / batch_size / kernel_w / kernel_h;
+        const int j = (index / width_col / height_col / batch_size) % kernel_w;
+        const int i = (index / width_col / height_col / batch_size / kernel_w) % kernel_h;
+        const int c = index / width_col / height_col / batch_size / kernel_w / kernel_h;
         // compute the start and end of the output
-        const int32_t deformable_group_index = c / channel_per_deformable_group;
+        const int deformable_group_index = c / channel_per_deformable_group;
 
-        int32_t w_out = index % width_col;
-        int32_t h_out = (index / width_col) % height_col;
-        int32_t b = (index / width_col / height_col) % batch_size;
-        int32_t w_in = w_out * stride_w - pad_w;
-        int32_t h_in = h_out * stride_h - pad_h;
+        int w_out = index % width_col;
+        int h_out = (index / width_col) % height_col;
+        int b = (index / width_col / height_col) % batch_size;
+        int w_in = w_out * stride_w - pad_w;
+        int h_in = h_out * stride_h - pad_h;
 
         const DType* data_offset_ptr = data_offset + (b * deformable_group + deformable_group_index) * 2 * kernel_h * kernel_w * height_col * width_col;
         const DType* data_mask_ptr = data_mask + (b * deformable_group + deformable_group_index) * kernel_h * kernel_w * height_col * width_col;
-        const int32_t data_offset_h_ptr = ((2 * (i * kernel_w + j)) * height_col + h_out) * width_col + w_out;
-        const int32_t data_offset_w_ptr = ((2 * (i * kernel_w + j) + 1) * height_col + h_out) * width_col + w_out;
-        const int32_t data_mask_hw_ptr = ((i * kernel_w + j) * height_col + h_out) * width_col + w_out;
+        const int data_offset_h_ptr = ((2 * (i * kernel_w + j)) * height_col + h_out) * width_col + w_out;
+        const int data_offset_w_ptr = ((2 * (i * kernel_w + j) + 1) * height_col + h_out) * width_col + w_out;
+        const int data_mask_hw_ptr = ((i * kernel_w + j) * height_col + h_out) * width_col + w_out;
         const DType offset_h = data_offset_ptr[data_offset_h_ptr];
         const DType offset_w = data_offset_ptr[data_offset_w_ptr];
         const DType mask = data_mask_ptr[data_mask_hw_ptr];
@@ -228,16 +279,16 @@ __global__ void DeformableConv2DCol2ImKernel(
         const DType cur_inv_w_data = w_in + j * dilation_w + offset_w;
 
         const DType cur_top_grad = data_col[index] * mask;
-        const int32_t cur_h = (int32_t)cur_inv_h_data;
-        const int32_t cur_w = (int32_t)cur_inv_w_data;
-        for (int32_t dy = -2; dy <= 2; dy++) {
-        for (int32_t dx = -2; dx <= 2; dx++) {
+        const int cur_h = (int)cur_inv_h_data;
+        const int cur_w = (int)cur_inv_w_data;
+        for (int dy = -2; dy <= 2; dy++) {
+        for (int dx = -2; dx <= 2; dx++) {
             if (cur_h + dy >= 0 && cur_h + dy < height &&
             cur_w + dx >= 0 && cur_w + dx < width &&
             abs(cur_inv_h_data - (cur_h + dy)) < 1 &&
             abs(cur_inv_w_data - (cur_w + dx)) < 1
             ) {
-                int32_t cur_bottom_grad_pos = ((b * channels + c) * height + cur_h + dy) * width + cur_w + dx;
+                int cur_bottom_grad_pos = ((b * channels + c) * height + cur_h + dy) * width + cur_w + dx;
                 DType weight = dmcn_get_gradient_weight(cur_inv_h_data, cur_inv_w_data, cur_h + dy, cur_w + dx, height, width);
                 CudaAtomicAdd(grad_im + cur_bottom_grad_pos, weight * cur_top_grad);
                 }
@@ -252,49 +303,49 @@ __global__ void DeformableConv2DCol2ImKernel(
  */
 template <typename DType>
 __global__ void DeformableConv2DCol2ImCoordGPUKernel(
-  const int32_t n, 
+  const int n, 
   const DType* data_col, const DType* data_im,
   const DType* data_offset, const DType* data_mask,
-  const int32_t channels, const int32_t height, const int32_t width, // 输入的C, H, W
-  const int32_t kernel_h, const int32_t kernel_w,
-  const int32_t pad_h, const int32_t pad_w,
-  const int32_t stride_h, const int32_t stride_w,
-  const int32_t dilation_h, const int32_t dilation_w,
-  const int32_t channel_per_deformable_group,
-  const int32_t batch_size, const int32_t offset_channels, const int32_t deformable_group,
-  const int32_t height_col, const int32_t width_col,
+  const int channels, const int height, const int width, // 输入的C, H, W
+  const int kernel_h, const int kernel_w,
+  const int pad_h, const int pad_w,
+  const int stride_h, const int stride_w,
+  const int dilation_h, const int dilation_w,
+  const int channel_per_deformable_group,
+  const int batch_size, const int offset_channels, const int deformable_group,
+  const int height_col, const int width_col,
   DType* grad_offset, DType* grad_mask) {
   CUDA_1D_KERNEL_LOOP(index, n){
     DType val = 0, mval = 0;
-    int32_t w = index % width_col;
-    int32_t h = (index / width_col) % height_col;
-    int32_t c = (index / width_col / height_col) % offset_channels;
-    int32_t b = (index / width_col / height_col) / offset_channels;
+    int w = index % width_col;
+    int h = (index / width_col) % height_col;
+    int c = (index / width_col / height_col) % offset_channels;
+    int b = (index / width_col / height_col) / offset_channels;
     // compute the start and end of the output
 
-    const int32_t deformable_group_index = c / (2 * kernel_h * kernel_w);
-    const int32_t col_step = kernel_h * kernel_w;
-    int32_t cnt = 0;
+    const int deformable_group_index = c / (2 * kernel_h * kernel_w);
+    const int col_step = kernel_h * kernel_w;
+    int cnt = 0;
     const DType* data_col_ptr = data_col + deformable_group_index * channel_per_deformable_group * batch_size * width_col * height_col;
     const DType* data_im_ptr = data_im + (b * deformable_group + deformable_group_index) * channel_per_deformable_group / kernel_h / kernel_w * height * width;
     const DType* data_offset_ptr = data_offset + (b * deformable_group + deformable_group_index) * 2 * kernel_h * kernel_w * height_col * width_col;
     const DType* data_mask_ptr = data_mask + (b * deformable_group + deformable_group_index) * kernel_h * kernel_w * height_col * width_col;
 
-    const int32_t offset_c = c - deformable_group_index * 2 * kernel_h * kernel_w;
+    const int offset_c = c - deformable_group_index * 2 * kernel_h * kernel_w;
 
     for (int col_c = (offset_c / 2); col_c < channel_per_deformable_group; col_c += col_step) {
-      const int32_t col_pos = (((col_c * batch_size + b) * height_col) + h) * width_col + w;
-      const int32_t bp_dir = offset_c % 2;
+      const int col_pos = (((col_c * batch_size + b) * height_col) + h) * width_col + w;
+      const int bp_dir = offset_c % 2;
 
-      int32_t j = (col_pos / width_col / height_col / batch_size) % kernel_w;
-      int32_t i = (col_pos / width_col / height_col / batch_size / kernel_w) % kernel_h;
-      int32_t w_out = col_pos % width_col;
-      int32_t h_out = (col_pos / width_col) % height_col;
-      int32_t w_in = w_out * stride_w - pad_w;
-      int32_t h_in = h_out * stride_h - pad_h;
-      const int32_t data_offset_h_ptr = (((2 * (i * kernel_w + j)) * height_col + h_out) * width_col + w_out);
-      const int32_t data_offset_w_ptr = (((2 * (i * kernel_w + j) + 1) * height_col + h_out) * width_col + w_out);
-      const int32_t data_mask_hw_ptr = (((i * kernel_w + j) * height_col + h_out) * width_col + w_out);
+      int j = (col_pos / width_col / height_col / batch_size) % kernel_w;
+      int i = (col_pos / width_col / height_col / batch_size / kernel_w) % kernel_h;
+      int w_out = col_pos % width_col;
+      int h_out = (col_pos / width_col) % height_col;
+      int w_in = w_out * stride_w - pad_w;
+      int h_in = h_out * stride_h - pad_h;
+      const int data_offset_h_ptr = (((2 * (i * kernel_w + j)) * height_col + h_out) * width_col + w_out);
+      const int data_offset_w_ptr = (((2 * (i * kernel_w + j) + 1) * height_col + h_out) * width_col + w_out);
+      const int data_mask_hw_ptr = (((i * kernel_w + j) * height_col + h_out) * width_col + w_out);
       const DType offset_h = data_offset_ptr[data_offset_h_ptr];
       const DType offset_w = data_offset_ptr[data_offset_w_ptr];
       const DType mask = data_mask_ptr[data_mask_hw_ptr];
@@ -328,9 +379,9 @@ inline void DeformableConv2DCol2ImCoord(
   const TShape& pad, const TShape& stride,
   const TShape& dilation, const uint32_t deformable_group,
   DType* grad_offset, DType* grad_mask){
-  index_t num_spatial_axes = kernel_shape.size();
-  index_t num_kernels = col_shape[1] * col_shape[2] * col_shape[3] * 2 * kernel_shape[0] * kernel_shape[1] * deformable_group;
-  index_t channel_per_deformable_group = col_shape[0] / deformable_group;
+  int  num_spatial_axes = kernel_shape.size();
+  int  num_kernels = col_shape[1] * col_shape[2] * col_shape[3] * 2 * kernel_shape[0] * kernel_shape[1] * deformable_group;
+  int  channel_per_deformable_group = col_shape[0] / deformable_group;
   // num_axes should be smaller than block size
   CudaLaunchConfig config = GetCudaLaunchConfig(num_kernels, d);
   CHECK_LT(num_spatial_axes, config.thread_per_block);
@@ -362,10 +413,10 @@ inline void DeformableConv2DCol2Im(GPUDevice& d,
     const TShape& pad, const TShape& stride,
     const TShape& dilation, const uint32_t deformable_group,
     DType* grad_im){
-    index_t num_spatial_axes = kernel_shape.size();
-  index_t im_size = ProdShape(im_shape, 1, im_shape.size());
-  index_t channel_per_deformable_group = im_shape[1] / deformable_group;
-  index_t num_kernels = ProdShape(col_shape, 0, col_shape.size());
+    int  num_spatial_axes = kernel_shape.size();
+  int  im_size = ProdShape(im_shape, 1, im_shape.size());
+  int  channel_per_deformable_group = im_shape[1] / deformable_group;
+  int  num_kernels = ProdShape(col_shape, 0, col_shape.size());
   // num_axes should be smaller than block size
   CudaLaunchConfig config = GetCudaLaunchConfig(num_kernels, d);
   CHECK_LT(num_spatial_axes, config.thread_per_block);
@@ -396,9 +447,9 @@ inline void DeformableConv2DIm2Col(GPUDevice& d,
     const TShape& pad, const TShape& stride, const TShape& dilation,
     const uint32_t deformable_group, DType* data_col){
         // num_axes should be smaller than block size
-    index_t num_spatial_axes = kernel_shape.size();
-    index_t channel_per_deformable_group = im_shape[1] / deformable_group; // imshape[1] = 输入图的通道数
-    index_t num_kernels = im_shape[1] * ProdShape(col_shape, 1, col_shape.size()); // K * N / k.Size(), k = filter, col_shape = [K, im2col_step_, H, W]
+    int  num_spatial_axes = kernel_shape.size();
+    int  channel_per_deformable_group = im_shape[1] / deformable_group; // imshape[1] = 输入图的通道数
+    int  num_kernels = im_shape[1] * ProdShape(col_shape, 1, col_shape.size()); // K * N / k.Size(), k = filter, col_shape = [K, im2col_step_, H, W]
     CudaLaunchConfig config = GetCudaLaunchConfig(num_kernels, d);
     CHECK_LT(num_spatial_axes, config.thread_per_block);
     switch (num_spatial_axes) {

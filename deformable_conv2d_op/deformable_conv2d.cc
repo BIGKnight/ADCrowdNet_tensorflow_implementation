@@ -242,7 +242,7 @@ class DeformableConv2DOp : public OpKernel{
         auto offset_ptr = offset.template flat<T>().data();
         auto mask_ptr = mask.template flat<T>.data();
         const Device& d = context->eigen_device<Device>();
-    //     Tensor<xpu, 1, DType> workspace = ctx.requested[dmconv::kTempSpace].get_space_typed<xpu, 1, DType>(Shape1(col_buffer_size_ + num_*output_dim_), s);　// allocate workspace for col_buffer
+        //     Tensor<xpu, 1, DType> workspace = ctx.requested[dmconv::kTempSpace].get_space_typed<xpu, 1, DType>(Shape1(col_buffer_size_ + num_*output_dim_), s);　// allocate workspace for col_buffer
 
         TShape col_buffer_shape(num_spatial_axes_ + 2);// calculate the shape of col_buffer, mxnet源码是 + 1, 多了一个im2col_step_
 
@@ -257,14 +257,14 @@ class DeformableConv2DOp : public OpKernel{
         OP_REQUIRES_OK(context, context->allocate_temp(DataTypeToEnum<T>::value, col_buffer_shape, &col_buffer));
         auto col_buffer_ptr = col_buffer.template flat<T>().data();
 
-    // TBlob col_buffer(workspace.dptr_, col_buffer_shape, xpu::kDevMask, DataType<DType>::kFlag); // create a column buffer using workspace and col_buffer_shape
+        // TBlob col_buffer(workspace.dptr_, col_buffer_shape, xpu::kDevMask, DataType<DType>::kFlag); // create a column buffer using workspace and col_buffer_shape
 
-    // /**
-    // * 这里比原MXNET的前向操作多申请了一块buffer, 貌似是用来放batch的输出的
-    // **/
-    // TShape output_buffer_shape(1);
-    // output_buffer_shape[0] = num_*output_dim_; // batch_size * 每个sample输出的元素个数,就等于这个batch整个的输出元素个数
-    // TBlob output_buffer(workspace.dptr_ + col_buffer_size_, output_buffer_shape, xpu::kDevMask, DataType<DType>::kFlag);
+        // /**
+        // * 这里比原MXNET的前向操作多申请了一块buffer, 貌似是用来放batch的输出的
+        // **/
+        // TShape output_buffer_shape(1);
+        // output_buffer_shape[0] = num_*output_dim_; // batch_size * 每个sample输出的元素个数,就等于这个batch整个的输出元素个数
+        // TBlob output_buffer(workspace.dptr_ + col_buffer_size_, output_buffer_shape, xpu::kDevMask, DataType<DType>::kFlag);
 
         
         int32_t M = conv_out_channels_ / group_; // filter的数量
@@ -292,53 +292,47 @@ class DeformableConv2DOp : public OpKernel{
          * **/
         T* output_temp_4d_ptr = output_temp_4d.template flat<T>.data();
 
-    TShape pads;
-    pads.push_back(dimensions.pad_rows);
-    pads.push_back(dimensions.pad_cols);
-    for (int32_t n = 0; n < num_ / im2col_step_; ++n) { // 分batch进行
-      // transform image to col_buffer in order to use gemm
-        DeformableConv2DIm2Col( // 这里是一张图片一张图片的送的
-            d, in_data_ptr + n * im2col_step_ * input_dim_, // dptr是获取输入数据的指针 + n * im2col_step_* input_dim 是让指针向后移动 一张图片的数据
-            offset_ptr + n * im2col_step_ * input_offset_dim_, //
-            mask_ptr + n * im2col_step_ * input_mask_dim_,
-            ToVector(input_shape),
-            col_buffer_shape,
-            SubVector(filter_shape, 0, 2),
-            pads,
-            SubVector(params_.strides, 2, 4),
-            SubVector(params_.dilations, 2, 4),
-            params_.deformable_groups,
-            col_buffer_ptr
-            );
-    //   Tensor<xpu, 3, DType> output_3d = output_4d[n];
-      for (int32_t g = 0; g < group_; ++g) {
-        // Legacy approach shown here for comparison:
-        //   Assign(output_3d[g], req[dmconv::kOut], dot(weight_3d[g], col_buffer_3d[g]));
-        // linalg_gemm(weight_3d[g], col_buffer_3d[g], output_3d[g], false, false, s, kWriteTo); //将得到的做点乘法
-        auto weight_3d_group_shape = TensorShape({1, M, K});
-        auto weight_3d_group_ptr = weight_3d_ptr + g * K * M;
-        auto col_buffer_group_3d_shape = TensorShape({1, K, N});
-        auto col_buffer_group_3d_ptr = col_buffer_ptr + g * K * N;
-        auto output_temp_group_ptr = output_temp_4d_ptr + (n * (num_ / im2col_step_) + g) * M * N;
-        LaunchBatchMatMul<GPUDevice, T>(context, weight_3d_group_shape, col_buffer_group_3d_shape, weight_3d_group_ptr, col_buffer_group_3d_ptr, false, false, output_temp_group_ptr);
-      }
+        TShape pads;
+        pads.push_back(dimensions.pad_rows);
+        pads.push_back(dimensions.pad_cols);
+        for (int32_t n = 0; n < num_ / im2col_step_; ++n) { // 分batch进行
+        // transform image to col_buffer in order to use gemm
+            DeformableConv2DIm2Col<T>( // 这里是一张图片一张图片的送的
+                d, in_data_ptr + n * im2col_step_ * input_dim_, // dptr是获取输入数据的指针 + n * im2col_step_* input_dim 是让指针向后移动 一张图片的数据
+                offset_ptr + n * im2col_step_ * input_offset_dim_, //
+                mask_ptr + n * im2col_step_ * input_mask_dim_,
+                ToVector(input_shape),
+                col_buffer_shape,
+                SubVector(filter_shape, 0, 2),
+                pads,
+                SubVector(params_.strides, 2, 4),
+                SubVector(params_.dilations, 2, 4),
+                params_.deformable_groups,
+                col_buffer_ptr
+                );
+        //   Tensor<xpu, 3, DType> output_3d = output_4d[n];
+        for (int32_t g = 0; g < group_; ++g) {
+            // Legacy approach shown here for comparison:
+            //   Assign(output_3d[g], req[dmconv::kOut], dot(weight_3d[g], col_buffer_3d[g]));
+            // linalg_gemm(weight_3d[g], col_buffer_3d[g], output_3d[g], false, false, s, kWriteTo); //将得到的做点乘法
+            auto weight_3d_group_shape = TensorShape({1, M, K});
+            auto weight_3d_group_ptr = weight_3d_ptr + g * K * M;
+            auto col_buffer_group_3d_shape = TensorShape({1, K, N});
+            auto col_buffer_group_3d_ptr = col_buffer_ptr + g * K * N;
+            auto output_temp_group_ptr = output_temp_4d_ptr + (n * (num_ / im2col_step_) + g) * M * N;
+            LaunchBatchMatMul<GPUDevice, T>(context, weight_3d_group_shape, col_buffer_group_3d_shape, weight_3d_group_ptr, col_buffer_group_3d_ptr, false, false, output_temp_group_ptr);
+        }
+        //SwapAxis(GPUDevice& d, DType* input_data, const TShape& origin_shape, const int axis_x, const int axis_y)
+        SwapAxis(d, output_temp_4d_ptr, ToVector(TensorShape({num_ / im2col_step_, conv_out_channels_, im2col_step_, conv_out_spatial_dim_})), 1, 2);
+        }
+
+        // Tensor<xpu, 4, DType> trans_output_4d = output_buffer.get_with_shape<xpu, 4, DType>(Shape4(num_ / im2col_step_, conv_out_channels_, im2col_step_, conv_out_spatial_dim_), s);
+
+        // Tensor<xpu, 4, DType> original_output_4d = out_data[dmconv::kOut].get_with_shape<xpu, 4, DType>(Shape4(num_ / im2col_step_, im2col_step_, conv_out_channels_, conv_out_spatial_dim_), s);
+
+        // original_output_4d = swapaxis<2, 1>(trans_output_4d); // 往out_data里写, 交换顺序
     }
 
-    // Tensor<xpu, 4, DType> trans_output_4d = output_buffer.get_with_shape<xpu, 4, DType>(Shape4(num_ / im2col_step_, conv_out_channels_, im2col_step_, conv_out_spatial_dim_), s);
-
-    // Tensor<xpu, 4, DType> original_output_4d = out_data[dmconv::kOut].get_with_shape<xpu, 4, DType>(Shape4(num_ / im2col_step_, im2col_step_, conv_out_channels_, conv_out_spatial_dim_), s);
-
-    original_output_4d = swapaxis<2, 1>(trans_output_4d); // 往out_data里写, 交换顺序　
-
-    // 添加偏置的方式和MXNET的源代码是一样的,
-    if (bias_term_) {
-      Tensor<xpu, 1, DType> bias = in_data[dmconv::kBias].get<xpu, 1, DType>(s);
-      Tensor<xpu, 3, DType> output_3d = out_data[dmconv::kOut].get_with_shape<xpu, 3, DType>(
-        Shape3(num_, conv_out_channels_, conv_out_spatial_dim_), s);
-      // has bias term, broadcast it to the same shape of output_3d in channel dim
-      output_3d += mshadow::expr::broadcast<1>(bias, output_3d.shape_);
-    }
-    }
 
     private:
     DeformableConv2DParameters params_;

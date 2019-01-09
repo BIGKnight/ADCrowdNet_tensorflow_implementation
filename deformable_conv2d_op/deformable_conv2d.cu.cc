@@ -373,6 +373,16 @@ __global__ void DeformableConv2DCol2ImCoordGPUKernel(
 }
 
 template <typename DType>
+__global__ void pureAddToKernel(const int n, DType* result_data, const DType* right_data)
+{
+
+  CUDA_1D_KERNEL_LOOP(index, n) {
+      CudaAtomicAdd(result_data+index, right_data[index]);
+  }
+  
+}
+
+template <typename DType>
 inline void DeformableConv2DCol2ImCoord(
   GPUDevice& d, const DType* data_col, const DType* data_im, const DType* data_offset, const DType* data_mask,
   const TShape& im_shape, const TShape& col_shape, const TShape& kernel_shape,
@@ -481,6 +491,15 @@ inline void DeformableConv2DIm2Col(GPUDevice& d,
                << num_spatial_axes << " spatial axes";
     }
 }
+
+template <typename DType>
+struct pureAddTo<GPUDevice, DType>{
+    void operator() (const GPUDevice& d, const int n, DType* result_data, const DType* right_data){
+        CudaLaunchConfig config = GetCudaLaunchConfig(n, d);
+        pureAddToKernel<DType> <<< config.block_count, config.thread_per_block, 0, d.stream() >>>(n, result_data, right_data);
+    }
+    
+};
 
 }
 #endif

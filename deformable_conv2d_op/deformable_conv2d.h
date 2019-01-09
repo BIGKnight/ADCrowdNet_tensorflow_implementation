@@ -26,6 +26,11 @@ inline int ProdShape(const TShape &shape, int start, int end) {
     return res;
 }    
 
+template <typename Device, typename DType>
+struct pureAddTo {
+    void operator() (const Device& d, const int n, DType* result_data, const DType* right_data);
+};
+
 template <typename Device, typename Scalar>
 struct LaunchBatchMatMul;
 

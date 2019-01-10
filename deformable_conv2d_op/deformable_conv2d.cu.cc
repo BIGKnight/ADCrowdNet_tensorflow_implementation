@@ -382,6 +382,16 @@ __global__ void pureAddToKernel(const int n, DType* result_data, const DType* ri
 }
 
 template <typename DType>
+__global__ void setZeroKernel(const int n, DType* result_data)
+{
+
+  CUDA_1D_KERNEL_LOOP(index, n) {
+      *(result_data + index)=DType(0);
+  }
+  
+}
+
+template <typename DType>
 inline void DeformableConv2DCol2ImCoord(
   const GPUDevice& d, const DType* data_col, const DType* data_im, const DType* data_offset, const DType* data_mask,
   const TShape& im_shape, const TShape& col_shape, const TShape& kernel_shape,
@@ -496,6 +506,15 @@ struct pureAddTo<GPUDevice, DType>{
     void operator() (const GPUDevice& d, const int n, DType* result_data, const DType* right_data){
         CudaLaunchConfig config = GetCudaLaunchConfig(n, d);
         pureAddToKernel<DType> <<< config.block_count, config.thread_per_block, 0, d.stream() >>>(n, result_data, right_data);
+    }
+    
+};
+
+template <typename DType>
+struct setZero<GPUDevice, DType>{
+    void operator() (const GPUDevice& d, int n, DType* result_data){
+        CudaLaunchConfig config = GetCudaLaunchConfig(n, d);
+        setZeroKernel<DType> <<< config.block_count, config.thread_per_block, 0, d.stream() >>>(n, result_data);
     }
     
 };

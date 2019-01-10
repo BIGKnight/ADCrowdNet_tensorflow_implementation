@@ -21,7 +21,7 @@ REGISTER_OP("DeformableConv2D")
     .Input("offset: T")
     .Input("mask: T")
     .Output("output: T")
-    .Attr("T: {half, bfloat16, float, double}")
+    .Attr("T: {float, double}")
     .Attr("strides: list(int)")
     // .Attr("use_cudnn_on_gpu: bool = true")
     .Attr("num_groups: int")
@@ -176,7 +176,7 @@ REGISTER_OP("DeformableConv2D")
 // in my opnion, the deformable convolution op ought to be implemented by extending the Conv2DOp, however, we can not get the conv_ops.h file if we choose to dynamic link the op
 
 REGISTER_OP("DeformableConv2DBackProp")
-    .Input("x: T")
+    .Input("input: T")
     .Input("filter: T")
     .Input("offset: T")
     .Input("mask: T")
@@ -185,7 +185,7 @@ REGISTER_OP("DeformableConv2DBackProp")
     .Output("filter_grad: T")
     .Output("offset_grad: T")
     .Output("mask_grad: T")
-    .Attr("T: {half, float, double}")
+    .Attr("T: {float, double}")
     .Attr("strides: list(int)")
     // .Attr("use_cudnn_on_gpu: bool = true")
     .Attr("num_groups: int")
@@ -212,7 +212,7 @@ class DeformableConv2DOp : public OpKernel{
         // init the original parameters to the traditional paramaters.
         // the macro OP_REQUIRES_OK is used to judge whether or not the init operation were done successfully 
         OP_REQUIRES_OK(context, InitDeformableConv2DParameters(context, &params_));
-        OP_REQUIRES_OK(context, context->GetAttr("use_cudnn_on_gpu", &use_cudnn_));
+        // OP_REQUIRES_OK(context, context->GetAttr("use_cudnn_on_gpu", &use_cudnn_));
     }
 
     void Compute(OpKernelContext* context) override{
@@ -485,6 +485,7 @@ class DeformableConv2DBackPropOp : public OpKernel{
         OP_REQUIRES_OK(context, context->allocate_output(3, mask_shape, &mask_grad));
         T* mask_grad_ptr = mask_grad->template flat<T>().data();
         //****
+
         TShape pads;
         pads.push_back(dimensions.pad_rows);
         pads.push_back(dimensions.pad_cols);
@@ -495,6 +496,11 @@ class DeformableConv2DBackPropOp : public OpKernel{
         Tensor dweight_3d_temp;
         OP_REQUIRES_OK(context, context->allocate_temp(DataTypeToEnum<T>::value, dweight_3d_shape, &dweight_3d_temp));
         T* dweight_3d_temp_ptr = dweight_3d_temp.template flat<T>().data();
+
+        setZero<Device, T>()(d, group_ * M * N, col_buffer_3d_ptr);
+        setZero<Device, T>()(d, ProdShape(x_shape, 0, x_shape.dims()), x_grad_ptr);
+        setZero<Device, T>()(d, ProdShape(dweight_3d_shape, 0, dweight_3d_shape.dims()), dweight_3d_ptr);
+        setZero<Device, T>()(d, ProdShape(dweight_3d_shape, 0, dweight_3d_shape.dims()), dweight_3d_temp_ptr);
 
         for(int n = 0;n < num_ / im2col_step_ ;++n){
             TensorShape out_grad_3d_shape = TensorShape({group_, K, N});

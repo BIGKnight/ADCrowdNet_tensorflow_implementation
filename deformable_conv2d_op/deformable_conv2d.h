@@ -148,6 +148,11 @@ inline void DeformableConv2DIm2Col(const GPUDevice& d,
     const int32_t deformable_group, DType* data_col);
 #endif
 
+template <typename Device, typename DType>
+struct setZero {
+    void operator() (const Device& d, int n, DType* result_data);
+};
+
 #if GOOGLE_CUDA == 1
 template <typename DType>
 inline void SwapAxis(const GPUDevice& d, DType*& input_data, const TShape& origin_shape, const int axis_x, const int axis_y);

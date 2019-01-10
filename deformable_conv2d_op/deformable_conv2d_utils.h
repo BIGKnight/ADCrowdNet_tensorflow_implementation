@@ -99,6 +99,7 @@ EIGEN_ALWAYS_INLINE EIGEN_DEVICE_FUNC bool FastBoundsCheck(const Ta index,
 
 
 // extract the inputs and attrs from context into private member params_
+// here not referred the filter, so it's ok, just use the version of the original version of the conv2d in tensorflow
 Status InitDeformableConv2DParameters(const OpKernelConstruction* context,
                             DeformableConv2DParameters* params) {
   TF_RETURN_IF_ERROR(context->GetAttr("dilations", &params->dilations));
@@ -150,6 +151,8 @@ Status InitDeformableConv2DParameters(const OpKernelConstruction* context,
   return Status::OK();
 }
 
+// be care for the truth that the filter has the shape of [out_depth, in_depth, filter_h, filter_w] instead of 'HWIO' in the original version of the conv2d in tensorflow
+
 Status ComputeDeformableConv2DDimension(const DeformableConv2DParameters& params,
                               const Tensor& input, const Tensor& filter,
                               DeformableConv2DDimensions* dimensions) {
@@ -160,16 +163,16 @@ Status ComputeDeformableConv2DDimension(const DeformableConv2DParameters& params
   TF_REQUIRES(filter.dims() == 4,
               errors::InvalidArgument("filter must be 4-dimensional: ",
                                       filter.shape().DebugString()));
-  for (int i = 0; i < 3; i++) {
+  for (int i = 3; i > 0; i--) {
     TF_REQUIRES(
         FastBoundsCheck(filter.dim_size(i), std::numeric_limits<int>::max()),
         errors::InvalidArgument("filter too large"));
   }
 
-  // The last dimension for input is in_depth. Check that it is the same as the
+  // The second dimension for input is in_depth. Check that it is the same as the
   // filter's in_depth or it is evenly divisible by filter's in_depth.
   const int64 in_depth_raw = GetTensorDim(input, params.data_format, 'C');
-  const int64 patch_depth_raw = filter.dim_size(2);
+  const int64 patch_depth_raw = filter.dim_size(1);
   TF_REQUIRES(FastBoundsCheck(in_depth_raw, std::numeric_limits<int>::max()),
               errors::InvalidArgument("Input depth too large"));
   TF_REQUIRES(FastBoundsCheck(patch_depth_raw, std::numeric_limits<int>::max()),
@@ -181,24 +184,24 @@ Status ComputeDeformableConv2DDimension(const DeformableConv2DParameters& params
                   "input depth must be evenly divisible by filter depth: ",
                   in_depth, " vs ", patch_depth));
 
-  // The last dimension for filter is out_depth.
-  const int out_depth = static_cast<int>(filter.dim_size(3));
+  // The first dimension for filter is out_depth.
+  const int out_depth = static_cast<int>(filter.dim_size(0));
 
-  // The second dimension for input is rows/height.
-  // The first dimension for filter is rows/height.
+  // The third dimension for input is rows/height.
+  // The third dimension for filter is rows/height.
   const int64 input_rows_raw = GetTensorDim(input, params.data_format, 'H');
   TF_REQUIRES(FastBoundsCheck(input_rows_raw, std::numeric_limits<int>::max()),
               errors::InvalidArgument("Input rows too large"));
   const int input_rows = static_cast<int>(input_rows_raw);
-  const int filter_rows = static_cast<int>(filter.dim_size(0));
+  const int filter_rows = static_cast<int>(filter.dim_size(2));
 
-  // The third dimension for input is columns/width.
-  // The second dimension for filter is columns/width.
+  // The fourth dimension for input is columns/width.
+  // The fourth dimension for filter is columns/width.
   const int64 input_cols_raw = GetTensorDim(input, params.data_format, 'W');
   TF_REQUIRES(FastBoundsCheck(input_cols_raw, std::numeric_limits<int>::max()),
               errors::InvalidArgument("Input cols too large"));
   const int input_cols = static_cast<int>(input_cols_raw);
-  const int filter_cols = static_cast<int>(filter.dim_size(1));
+  const int filter_cols = static_cast<int>(filter.dim_size(3));
 
   // The first dimension for input is batch.
   const int64 batch_raw = GetTensorDim(input, params.data_format, 'N');

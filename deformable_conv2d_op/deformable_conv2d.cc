@@ -1,21 +1,17 @@
 #include "deformable_conv2d.h"
 #include "tensorflow/core/framework/op_kernel.h"
-#include "tensorflow/core/framework/register_types.h"
 #include "tensorflow/core/framework/tensor.h"
-#include "tensorflow/core/framework/tensor_shape.h"
-#include "tensorflow/core/framework/register_types.h"
 #include "tensorflow/core/framework/op.h"
 #include "tensorflow/core/framework/shape_inference.h"
-#include "tensorflow/core/util/tensor_format.h"
-#include "tensorflow/core/util/padding.h"
-#include "tensorflow/core/lib/core/errors.h"
-#include "tensorflow/core/framework/common_shape_fns.h"
 #include "tensorflow/core/framework/attr_value.pb.h"
 #include "deformable_conv2d_utils.h"
 #include <cmath>
 
 namespace tensorflow{
-typedef std::vector<int32> TShape;
+
+using shape_inference::DimensionHandle;
+using shape_inference::InferenceContext;
+using shape_inference::ShapeHandle;
 
 // the inputs should have format NCHW, which is faster on GPUs
 // Once the attrs set, the values of them will not change any more during the training process.
@@ -35,7 +31,7 @@ REGISTER_OP("DeformableConv2D")
     .Attr(GetPaddingAttrString())
     .Attr("data_format: {'NCHW' } = 'NCHW' ")
     .Attr("dilations: list(int) = [1, 1, 1, 1]")
-    .SetShapeFn([](::tensorflow::shape_inference::InferenceContext* c){
+    .SetShapeFn([](InferenceContext* c){
             ShapeHandle input_shape;
             TF_RETURN_IF_ERROR(c->WithRank(c->input(0), 4, &input_shape));
             ShapeHandle filter_shape;
@@ -43,7 +39,7 @@ REGISTER_OP("DeformableConv2D")
             ShapeHandle offset_shape;
             TF_RETURN_IF_ERROR(c->WithRank(c->input(2), 4, &offset_shape));
             ShapeHandle mask_shape;
-            TF_RETURN_IF_ERROR(c->WithRank(c->input(3), 4, &mask_shape))
+            TF_RETURN_IF_ERROR(c->WithRank(c->input(3), 4, &mask_shape));
 
             std::vector<int32> strides;
             TF_RETURN_IF_ERROR(c->GetAttr("strides", &strides));
@@ -99,7 +95,7 @@ REGISTER_OP("DeformableConv2D")
             }
 
             auto mask_dpt = c->Value(c->Dim(mask_shape, 1));
-            if ((mask_dpt % (filter_row * filter_col) != 0 || (mask_dpt / (filter_row * filter_col) != deform_groups)){
+            if ((mask_dpt % (filter_row * filter_col) != 0) || (mask_dpt / (filter_row * filter_col) != deform_groups)){
                 return errors::InvalidArgument("Deformconv requires the mask compatible with filter, but "
                         "got: ",
                         c->DebugString(offset_shape));
@@ -199,7 +195,7 @@ REGISTER_OP("DeformableConv2DBackProp")
     .Attr(GetPaddingAttrString())
     .Attr("data_format: { 'NCHW' } = 'NCHW' ")
     .Attr("dilations: list(int) = [1, 1, 1, 1]")
-    .SetShapeFn([](::tensorflow::shape_inference::InferenceContext* c){
+    .SetShapeFn([](InferenceContext* c){
         c->set_output(0, c->input(0));
         c->set_output(1, c->input(1));
         c->set_output(2, c->input(2));
@@ -215,10 +211,8 @@ class DeformableConv2DOp : public OpKernel{
     explicit DeformableConv2DOp(OpKernelConstruction* context) : OpKernel(context){
         // init the original parameters to the traditional paramaters.
         // the macro OP_REQUIRES_OK is used to judge whether or not the init operation were done successfully 
-        OP_REQUIRES_OK(context, InitDeformableConv2DParameters(context. &params_));
+        OP_REQUIRES_OK(context, InitDeformableConv2DParameters(context, &params_));
         OP_REQUIRES_OK(context, context->GetAttr("use_cudnn_on_gpu", &use_cudnn_));
-        use_cudnn_ &= CanUseCudnn();
-        cudnn_use_autotune_ = CudnnUseAutotune();
     }
 
     void Compute(OpKernelContext* context) override{
@@ -269,22 +263,25 @@ class DeformableConv2DOp : public OpKernel{
          * and began to use the implement of the deformable conv2d of the msra version
          * **/
         LayerSetUp(input_shape, filter_shape, offset_shape, mask_shape, out_shape);
-
-        auto in_data_ptr = input.template flat<T>().data();
-        auto offset_ptr = offset.template flat<T>().data();
-        auto mask_ptr = mask.template flat<T>.data();
+        // notice the fact that the flat function return a reference of a pointer, but in fact we only need a pointer
+        const T* in_data_ptr = input.template flat<T>().data();
+        const T* offset_ptr = offset.template flat<T>().data();
+        const T* mask_ptr = mask.template flat<T>().data();
         const Device& d = context->eigen_device<Device>();
         int col_buffer_shape_temp[4];// calculate the shape of col_buffer, mxnet源码是 + 1, 多了一个im2col_step_
-        col_buffer_shape_temp[0] = ProdShape(filter_shape, 1, filter_shape.dims()); // 卷积核的参数个数,注意卷积核的形状应该是[out_depth, in_depth, height, weight]
+        col_buffer_shape_temp[0] = ProdShape(filter_shape, 1, filter_shape.dims());// 卷积核的参数个数,注意卷积核的形状应该是[out_depth, in_depth, height, weight]
         col_buffer_shape_temp[1] = im2col_step_;
         col_buffer_shape_temp[2] = out_shape.dim_size(2);
         col_buffer_shape_temp[3] = out_shape.dim_size(3);
-        TensorShape col_buffer_shape;
-        TF_RETURN_IF_ERROR(MakeShape(col_buffer_shape_temp, 4, &col_buffer_shape));
+        TensorShape col_buffer_shape = TensorShape({
+            col_buffer_shape_temp[0],
+            col_buffer_shape_temp[1],
+            col_buffer_shape_temp[2],
+            col_buffer_shape_temp[3]});
 
         Tensor col_buffer;
         OP_REQUIRES_OK(context, context->allocate_temp(DataTypeToEnum<T>::value, col_buffer_shape, &col_buffer));
-        auto col_buffer_ptr = col_buffer.template flat<T>().data();
+        T* col_buffer_ptr = col_buffer.template flat<T>().data();
 
         int32_t M = conv_out_channels_ / group_; // filter的数量
         int32_t N = im2col_step_ * conv_out_spatial_dim_; // 我不是很理解这里的im2col_step_
@@ -293,11 +290,11 @@ class DeformableConv2DOp : public OpKernel{
         Tensor weight_3d;
         TensorShape weight_3d_shape = TensorShape({group_, M, K});
         OP_REQUIRES(context, weight_3d.CopyFrom(filter, weight_3d_shape), errors::InvalidArgument("shape doesn't match"));
-        const T* weight_3d_ptr = weight_3d.template flat<T>().data();
+        T* weight_3d_ptr = weight_3d.template flat<T>().data();
         
         Tensor* output_temp_4d = nullptr;
         OP_REQUIRES_OK(context, context->allocate_output(0, out_shape, &output_temp_4d));
-        auto output_temp_4d_ptr = output_temp_4d->template flat<T>.data();
+        T* output_temp_4d_ptr = output_temp_4d->template flat<T>().data();
         /**
          * 这样的话下面计算矩阵乘法的时候直接就写到这个输出里了
          * 但是注意的是作者实现的时候划分ｓｔｅｐ，这个时候其实是往ｓｈａｐｅ为｛num_ / im2col_step_, group_, M, N｝的输出里写的，所以最后一定要置换一下维度的位置
@@ -307,12 +304,12 @@ class DeformableConv2DOp : public OpKernel{
         pads.push_back(dimensions.pad_cols);
         for (int32_t n = 0; n < num_ / im2col_step_; ++n) { // 分batch进行
         // transform image to col_buffer in order to use gemm
-            DeformableConv2DIm2Col<T>( // 这里是一张图片一张图片的送的
+            DeformableConv2DIm2Col<T>(
                 d, in_data_ptr + n * im2col_step_ * input_dim_, // dptr是获取输入数据的指针 + n * im2col_step_* input_dim 是让指针向后移动 一张图片的数据
                 offset_ptr + n * im2col_step_ * input_offset_dim_, //
                 mask_ptr + n * im2col_step_ * input_mask_dim_,
                 ToVector(input_shape),
-                col_buffer_shape,
+                ToVector(col_buffer_shape),
                 SubVector(filter_shape, 2, 4),
                 pads,
                 SubVector(params_.strides, 2, 4),
@@ -321,20 +318,20 @@ class DeformableConv2DOp : public OpKernel{
                 col_buffer_ptr
                 );
             TensorShape col_buffer_3d_shape = TensorShape({group_, K, N});
-            auto output_temp_group_ptr = output_temp_4d_ptr + (n * group_ * M * N);
+            T* output_temp_group_ptr = output_temp_4d_ptr + (n * group_ * M * N);
             LaunchBatchMatMul<Device, T>::launch(context, weight_3d_shape, col_buffer_3d_shape, weight_3d_ptr, col_buffer_ptr, false, false, output_temp_4d_ptr);
-            SwapAxis(d, output_temp_4d_ptr, ToVector(TensorShape({num_ / im2col_step_, conv_out_channels_, im2col_step_, conv_out_spatial_dim_})), 1, 2);
+            SwapAxis<T>(d, output_temp_4d_ptr, ToVector(TensorShape({num_ / im2col_step_, conv_out_channels_, im2col_step_, conv_out_spatial_dim_})), 1, 2);
         
         //   Tensor<xpu, 3, DType> output_3d = output_4d[n];
         // for (int32_t g = 0; g < group_; ++g) {
         //     // Legacy approach shown here for comparison:
         //     //   Assign(output_3d[g], req[dmconv::kOut], dot(weight_3d[g], col_buffer_3d[g]));
         //     // linalg_gemm(weight_3d[g], col_buffer_3d[g], output_3d[g], false, false, s, kWriteTo); //将得到的做点乘法
-        //     auto weight_3d_group_shape = TensorShape({1, M, K});
-        //     auto weight_3d_group_ptr = weight_3d_ptr + g * K * M;
-        //     auto col_buffer_group_3d_shape = TensorShape({1, K, N});
-        //     auto col_buffer_group_3d_ptr = col_buffer_ptr + g * K * N;
-        //     auto output_temp_group_ptr = output_temp_4d_ptr + (n * group_ + g) * M * N;
+        //     T* weight_3d_group_shape = TensorShape({1, M, K});
+        //     T* weight_3d_group_ptr = weight_3d_ptr + g * K * M;
+        //     T* col_buffer_group_3d_shape = TensorShape({1, K, N});
+        //     T* col_buffer_group_3d_ptr = col_buffer_ptr + g * K * N;
+        //     T* output_temp_group_ptr = output_temp_4d_ptr + (n * group_ + g) * M * N;
         //     LaunchBatchMatMul<GPUDevice, T>::launch(context, weight_3d_group_shape, col_buffer_group_3d_shape, weight_3d_group_ptr, col_buffer_group_3d_ptr, false, false, output_temp_group_ptr);
         // }
         }
@@ -410,7 +407,7 @@ class DeformableConv2DBackPropOp : public OpKernel{
     explicit DeformableConv2DBackPropOp(OpKernelConstruction* context) : OpKernel(context){
         // init the original parameters to the traditional paramaters.
         // the macro OP_REQUIRES_OK is used to judge whether or not the init operation were done successfully 
-        OP_REQUIRES_OK(context, InitDeformableConv2DParameters(context. &params_));
+        OP_REQUIRES_OK(context, InitDeformableConv2DParameters(context, &params_));
         // OP_REQUIRES_OK(context, context->GetAttr("use_cudnn_on_gpu", &use_cudnn_));
         // use_cudnn_ &= CanUseCudnn();
         // cudnn_use_autotune_ = CudnnUseAutotune();
@@ -441,47 +438,52 @@ class DeformableConv2DBackPropOp : public OpKernel{
         col_buffer_shape_temp[1] = im2col_step_;
         col_buffer_shape_temp[2] = out_grad_shape.dim_size(2);
         col_buffer_shape_temp[3] = out_grad_shape.dim_size(3);
-        TensorShape col_buffer_shape;
-        TF_RETURN_IF_ERROR(MakeShape(col_buffer_shape_temp, 4, &col_buffer_shape));
+        TensorShape col_buffer_shape = TensorShape({
+            col_buffer_shape_temp[0], 
+            col_buffer_shape_temp[1],
+            col_buffer_shape_temp[2],
+            col_buffer_shape_temp[3]
+        });
+        
 
         int32_t M = kernel_dim_;
         int32_t N = im2col_step_ * conv_out_spatial_dim_;
         int32_t K = conv_out_channels_ / group_;
 
-        auto x_ptr = x.template flat<T>.data();
-        auto offset_ptr = offset.template flat<T>.data();
-        auto mask_ptr = mask.template flat<T>.data();
-        auto weight_3d_ptr = filter.template flat<T>.data();
+        const T* x_ptr = x.template flat<T>().data();
+        const T* offset_ptr = offset.template flat<T>().data();
+        const T* mask_ptr = mask.template flat<T>().data();
+        const T* weight_3d_ptr = filter.template flat<T>().data();
         TensorShape weight_3d_shape = TensorShape({group_, K, M});
 
         Tensor out_grad_4d;
         TensorShape out_grad_4d_shape = TensorShape({num_ / im2col_step_, im2col_step_, conv_out_channels_, conv_out_spatial_dim_});
         OP_REQUIRES(context, out_grad_4d.CopyFrom(out_grad, out_grad_4d_shape), errors::InvalidArgument("shape doesn't match"));
-        auto out_grad_4d_ptr = out_grad_4d.template flat<T>().data();
-        SwapAxis(d, out_grad_4d_ptr, ToVector(out_grad_4d_shape), 1, 2);// so the shape bacame:{num_ / im2col_step_, conv_out_channels_, im2col_step_, conv_out_spatial_dim_}
+        T* out_grad_4d_ptr = out_grad_4d.template flat<T>().data();
+        SwapAxis<T>(d, out_grad_4d_ptr, ToVector(out_grad_4d_shape), 1, 2);// so the shape bacame:{num_ / im2col_step_, conv_out_channels_, im2col_step_, conv_out_spatial_dim_}
         out_grad_4d_shape = TensorShape({num_ / im2col_step_, group_, K, N});
 
         Tensor col_buffer;
         OP_REQUIRES_OK(context, context->allocate_temp(DataTypeToEnum<T>::value, col_buffer_shape, &col_buffer));
-        auto col_buffer_3d_ptr = col_buffer.template flat<T>.data();
+        T* col_buffer_3d_ptr = col_buffer.template flat<T>().data();
         TensorShape col_buffer_3d_shape = TensorShape({group_, M, N});
         //****
         Tensor* dweight_3d = nullptr;
         TensorShape dweight_3d_shape = TensorShape({group_, K, M});
         OP_REQUIRES_OK(context, context->allocate_output(1, dweight_3d_shape, &dweight_3d));
-        auto dweight_3d_ptr = dweight_3d->template flat<T>.data();
+        T* dweight_3d_ptr = dweight_3d->template flat<T>().data();
         
         Tensor* x_grad = nullptr;
-        OP_REQUIRES_OK(context, context->allocate_output(0, x_shape, &data_grad));
-        auto x_grad_ptr = x_grad->template flat<T>.data();
+        OP_REQUIRES_OK(context, context->allocate_output(0, x_shape, &x_grad));
+        T* x_grad_ptr = x_grad->template flat<T>().data();
 
         Tensor* offset_grad = nullptr;
         OP_REQUIRES_OK(context, context->allocate_output(2, offset_shape, &offset_grad));
-        auto offset_grad_ptr = offset_grad->template flat<T>.data();
+        T* offset_grad_ptr = offset_grad->template flat<T>().data();
 
         Tensor* mask_grad = nullptr;
         OP_REQUIRES_OK(context, context->allocate_output(3, mask_shape, &mask_grad));
-        auto mask_grad_ptr = mask_grad->template flat<T>.data();
+        T* mask_grad_ptr = mask_grad->template flat<T>().data();
         //****
         TShape pads;
         pads.push_back(dimensions.pad_rows);
@@ -490,13 +492,13 @@ class DeformableConv2DBackPropOp : public OpKernel{
         TShape stride_shape = SubVector(params_.strides, 2, 4);
         TShape dilation_shape = SubVector(params_.dilations, 2, 4);
 
-        Tensor dweight_3d_temp = nullptr;
+        Tensor dweight_3d_temp;
         OP_REQUIRES_OK(context, context->allocate_temp(DataTypeToEnum<T>::value, dweight_3d_shape, &dweight_3d_temp));
-        auto dweight_3d_temp_ptr = dweight_3d_temp.template flat<T>().data();
+        T* dweight_3d_temp_ptr = dweight_3d_temp.template flat<T>().data();
 
         for(int n = 0;n < num_ / im2col_step_ ;++n){
             TensorShape out_grad_3d_shape = TensorShape({group_, K, N});
-            auto out_grad_3d_ptr = out_grad_4d_ptr + n * group_ * K * N;
+            T* out_grad_3d_ptr = out_grad_4d_ptr + n * group_ * K * N;
             LaunchBatchMatMul<Device, T>::launch(
                 context, weight_3d_shape, 
                 out_grad_3d_shape, 
@@ -505,7 +507,7 @@ class DeformableConv2DBackPropOp : public OpKernel{
                 true, false, 
                 col_buffer_3d_ptr);
 
-            DeformableConv2DCol2ImCoord(
+            DeformableConv2DCol2ImCoord<T>(
                 d, 
                 col_buffer_3d_ptr,
                 x_ptr + n * im2col_step_ * input_dim_, 
@@ -520,7 +522,7 @@ class DeformableConv2DBackPropOp : public OpKernel{
                 offset_grad_ptr + n * im2col_step_ * input_offset_dim_,
                 mask_grad_ptr + n * im2col_step_ * input_mask_dim_);
 
-            DeformableConv2DCol2Im(
+            DeformableConv2DCol2Im<T>(
                 d,
                 col_buffer_3d_ptr,
                 offset_ptr + n * im2col_step_ * input_offset_dim_, 
@@ -533,7 +535,7 @@ class DeformableConv2DBackPropOp : public OpKernel{
                 params_.deformable_groups,
                 x_grad_ptr + n * im2col_step_ * input_dim_);
 
-            DeformableConv2DIm2Col(d,
+            DeformableConv2DIm2Col<T>(d,
                 x_ptr + n * im2col_step_ * input_dim_, 
                 offset_ptr + n * im2col_step_ * input_offset_dim_, 
                 mask_ptr + n * im2col_step_ * input_mask_dim_,

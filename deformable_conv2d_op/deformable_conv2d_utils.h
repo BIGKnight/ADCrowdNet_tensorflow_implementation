@@ -1,9 +1,11 @@
 #include "third_party/eigen3/Eigen/Core"
 #include "tensorflow/core/platform/macros.h"
-#include "tensorflow/core/framework/tensor_shape.h"
 #include "tensorflow/core/lib/core/errors.h"
 #include "tensorflow/core/framework/common_shape_fns.h"
 #include "deformable_conv2d.h"
+#if GOOGLE_CUDA
+#include "tensorflow/core/platform/stream_executor.h"
+#endif  // GOOGLE_CUDA
 
 namespace tensorflow{
 
@@ -249,8 +251,8 @@ Status ComputeDeformableConv2DDimension(const DeformableConv2DParameters& params
 
 template <typename Scalar>
 struct LaunchBatchMatMul<CPUDevice, Scalar>{
-  static void launch()(OpKernelContext* context, const TensorShape& in_x_shape, const TensorShape& in_y_shape, const Scalar* in_x_ptr,
-                     const Scalar* in_y_ptr, bool adj_x, bool adj_y, Scalar* out) {
+  static void launch(OpKernelContext* context, const TensorShape& in_x_shape, const TensorShape& in_y_shape, const Scalar* in_x_ptr,
+                     const Scalar* in_y_ptr, bool adj_x, bool adj_y, Scalar* out){
             LOG(FATAL) << "only implemented in GPU";
     }
 };
@@ -300,7 +302,7 @@ class CublasScratchAllocator : public se::ScratchAllocator {
 #if GOOGLE_CUDA
 template <typename Scalar>
 struct LaunchBatchMatMul<GPUDevice, Scalar>{
-  static void launch()(OpKernelContext* context, const TensorShape& in_x_shape, const TensorShape& in_y_shape, const Scalar* in_x_ptr,
+  static void launch(OpKernelContext* context, const TensorShape& in_x_shape, const TensorShape& in_y_shape, const Scalar* in_x_ptr,
                      const Scalar* in_y_ptr, bool adj_x, bool adj_y, Scalar* out) {
     constexpr se::blas::Transpose kTranspose =
         is_complex<Scalar>::value ? se::blas::Transpose::kConjugateTranspose
@@ -437,7 +439,7 @@ inline std::vector<int> SubVector(const TensorShape& shape, int start, int end){
     return res;
 }
 
-inline TShape ToVector(const TShape &shape, int start, int end) {
+inline TShape SubVector(const TShape &shape, int start, int end) {
     TShape res;
     for(int i=start;i<end;i++){
         res.push_back(shape[i]);

@@ -7,11 +7,10 @@
 
 namespace tensorflow{
 
-typedef Eigen::GpuDevice GPUDevice;
-typedef std::vector<int32> TShape;
+// typedef Eigen::GpuDevice GPUDevice;
 
 // define the cuda kernel
-template<typedef DType>
+template<typename DType>
 __device__ DType dmcn_im2col_bilinear(
     const DType* bottom_data,
     const int data_width,
@@ -33,16 +32,16 @@ __device__ DType dmcn_im2col_bilinear(
         DType v3 = 0;
         if (h_high <= height - 1 && w_low >= 0) v3 = bottom_data[h_high * data_width + w_low];
         DType v4 = 0;
-        if (h_high <= height - 1 && w_high <= width - 1) v4 = bottom_data[h_high * data_width + w_high]
+        if (h_high <= height - 1 && w_high <= width - 1) v4 = bottom_data[h_high * data_width + w_high];
         DType w1 = hh * hw, w2 = hh * lw, w3 = lh * hw, w4 = lh * lw;
         DType val = (w1 * v1 + w2 * v2 + w3 * v3 + w4 * v4);
         return val;
 }
 
-template<typedef DType>
+template<typename DType>
 __device__ DType dmcn_get_gradient_weight(
-    DType argmax_h,　// offset h
-    DType argmax_w,　// offset w
+    DType argmax_h, // offset h
+    DType argmax_w, // offset w
     const int h,  const int w, // coordinate
     const int height,  const int width){
   if (argmax_h <= -1 || argmax_h >= height || argmax_w <= -1 || argmax_w >= width) {
@@ -85,7 +84,7 @@ __device__ DType dmcn_get_coordinate_weight(
   
   DType weight = 0;
 
-  if (bp_dir == 0) {　//先ｘ方向 , 这个负号是把ｙ放向上的(argmax_h_high - argmax_h)替换成了1 - (argmax_h - argmax_h_low)
+  if (bp_dir == 0) { //先ｘ方向 , 这个负号是把ｙ放向上的(argmax_h_high - argmax_h)替换成了1 - (argmax_h - argmax_h_low)
     if (argmax_h_low >= 0 && argmax_w_low >= 0)
         weight += -1 * (argmax_w_low + 1 - argmax_w) * im_data[argmax_h_low * data_width + argmax_w_low];
 
@@ -100,7 +99,7 @@ __device__ DType dmcn_get_coordinate_weight(
 
   }
 
-  else if (bp_dir == 1) {　//先ｙ放向
+  else if (bp_dir == 1) { //先ｙ放向
     if (argmax_h_low >= 0 && argmax_w_low >= 0)
         weight += -1 * (argmax_h_low + 1 - argmax_h) * im_data[argmax_h_low * data_width + argmax_w_low];
 
@@ -141,7 +140,7 @@ __global__ void SwapAxisKernel(
 }
 
 template <typename DType>
-inline void SwapAxis(GPUDevice& d, DType* input_data, const TShape& origin_shape, const int axis_x, const int axis_y){
+inline void SwapAxis(const GPUDevice& d, DType* input_data, const TShape& origin_shape, const int axis_x, const int axis_y){
     if (axis_x > axis_y){
         LOG(FATAL) << "Axis_x must be bigger or equal to Axis_y";
         return;
@@ -157,7 +156,7 @@ inline void SwapAxis(GPUDevice& d, DType* input_data, const TShape& origin_shape
     }
     int cuda_mem_size = 1;
         for (int i = axis_x;i<origin_shape.size();i++){
-            cuda_mem_size *= origin_shape[i]];
+            cuda_mem_size *= origin_shape[i];
         }
     int min_unit_size = 1;
     for(int i = axis_y + 1;i<origin_shape.size();i++){
@@ -175,9 +174,9 @@ __global__ void DeformableConv2DIm2ColKernel(
     const DType* data_offset,
     const DType* data_mask,
 
-    const int height,　const int width,
-    const int kernel_h,　const int kernel_w,
-    const int pad_h,　const int pad_w,
+    const int height, const int width,
+    const int kernel_h, const int kernel_w,
+    const int pad_h, const int pad_w,
     const int stride_h, const int stride_w,
     const int dilation_h, const int dilation_w,
 
@@ -384,10 +383,10 @@ __global__ void pureAddToKernel(const int n, DType* result_data, const DType* ri
 
 template <typename DType>
 inline void DeformableConv2DCol2ImCoord(
-  GPUDevice& d, const DType* data_col, const DType* data_im, const DType* data_offset, const DType* data_mask,
+  const GPUDevice& d, const DType* data_col, const DType* data_im, const DType* data_offset, const DType* data_mask,
   const TShape& im_shape, const TShape& col_shape, const TShape& kernel_shape,
   const TShape& pad, const TShape& stride,
-  const TShape& dilation, const uint32_t deformable_group,
+  const TShape& dilation, const int32_t deformable_group,
   DType* grad_offset, DType* grad_mask){
   int  num_spatial_axes = kernel_shape.size();
   int  num_kernels = col_shape[1] * col_shape[2] * col_shape[3] * 2 * kernel_shape[0] * kernel_shape[1] * deformable_group;
@@ -417,11 +416,11 @@ inline void DeformableConv2DCol2ImCoord(
 }
 
 template <typename DType>
-inline void DeformableConv2DCol2Im(GPUDevice& d, 
+inline void DeformableConv2DCol2Im(const GPUDevice& d, 
     const DType* data_col, const DType* data_offset, const DType* data_mask,
     const TShape& im_shape, const TShape& col_shape, const TShape& kernel_shape,
     const TShape& pad, const TShape& stride,
-    const TShape& dilation, const uint32_t deformable_group,
+    const TShape& dilation, const int32_t deformable_group,
     DType* grad_im){
     int  num_spatial_axes = kernel_shape.size();
   int  im_size = ProdShape(im_shape, 1, im_shape.size());
@@ -441,7 +440,7 @@ inline void DeformableConv2DCol2Im(GPUDevice& d,
         num_kernels, data_col, data_offset, data_mask, im_shape[1], im_shape[2], im_shape[3],
         kernel_shape[0], kernel_shape[1], pad[0], pad[1], stride[0], stride[1],
         dilation[0], dilation[1], channel_per_deformable_group,
-        col_shape[1], deformable_group, col_shape[2], col_shape[3], grad_im, req);
+        col_shape[1], deformable_group, col_shape[2], col_shape[3], grad_im);
     // MSHADOW_CUDA_POST_KERNEL_CHECK(modulated_deformable_col2im_gpu_kernel);
     break;
   default:
@@ -451,11 +450,11 @@ inline void DeformableConv2DCol2Im(GPUDevice& d,
 }
 
 template <typename DType>
-inline void DeformableConv2DIm2Col(GPUDevice& d, 
+inline void DeformableConv2DIm2Col(const GPUDevice& d, 
     const DType* data_im, const DType* data_offset, const DType* data_mask,
     const TShape& im_shape, const TShape& col_shape, const TShape& kernel_shape,
     const TShape& pad, const TShape& stride, const TShape& dilation,
-    const uint32_t deformable_group, DType* data_col){
+    const int32_t deformable_group, DType* data_col){
         // num_axes should be smaller than block size
     int  num_spatial_axes = kernel_shape.size();
     int  channel_per_deformable_group = im_shape[1] / deformable_group; // imshape[1] = 输入图的通道数

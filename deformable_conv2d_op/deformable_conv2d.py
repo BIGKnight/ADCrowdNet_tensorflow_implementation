@@ -8,6 +8,7 @@ deformable_conv2d_module = tf.load_op_library(filename)
 deformable_conv2d_op = deformable_conv2d_module.deformable_conv2d
 deformable_conv2d_grad_op = deformable_conv2d_module.deformable_conv2d_back_prop
 
+
 @ops.RegisterGradient("DeformableConv2D")
 def _deformable_conv2d_back_prop(op, grad):
     """The gradients for `deform_conv`.

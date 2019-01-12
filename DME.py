@@ -1,6 +1,5 @@
-import os
 import tensorflow as tf
-import numpy as np
+import os
 import tensorflow.contrib.slim as slim
 import tensorflow.contrib.slim.nets as nets
 model_path = '/home/zzn/PycharmProjects/ADCrowdNet/vgg_pre-trained_variable_list/vgg_16.ckpt'
@@ -16,22 +15,37 @@ def DME_front_end(features):
                  'vgg_16/pool2',
                  'vgg_16/conv3',
                  'vgg_16/pool3',
-                 'vgg_16/conv4'])
+                 'vgg_16/conv4'
+                 ])
     init_fn = slim.contrib_framework.assign_from_checkpoint_fn(model_path, variables_to_restore)
     front_end = end_points['vgg_16/conv4/conv4_3']
     return front_end, init_fn
 
 
-def deformable_conv2d(features, kernel_size, output_nums, stride, batch_size, image_height, image_weight):
-    kernel_arg_nums = kernel_size[0] * kernel_size[1]
-    args = slim.conv2d(features, 3 * kernel_arg_nums, kernel_size, stride, padding='SAME')
-    offset = tf.slice(args, [0, 0, 0, 0], [batch_size, image_height, image_weight, 2 * kernel_arg_nums])
-    mask = tf.slice(args, [0, 0, 0, 2 * kernel_arg_nums], [batch_size, image_height, image_weight, kernel_arg_nums])
-    tf.nn.de
+def DME_inception(features, index,  output_nums):
+    with tf.variable_scope(name_or_scope='inception_' + str(index)):
+        part_1 = slim.conv2d(features, output_nums, 3, 1, data_format='NCHW', scope='part_1')
+        part_2 = slim.conv2d(features, output_nums, 5, 1, data_format='NCHW', scope='part_2')
+        part_3 = slim.conv2d(features, output_nums, 7, 1, data_format='NCHW', scope='part_3')
+    output = tf.concat([part_1, part_2, part_3], axis=1, name='concat_' + str(index))
+    return output
 
 def DME_back_end(features):
+    features_transpose = tf.transpose(features, [0, 3, 1, 2])
+    with slim.arg_scope([slim.conv2d],
+                        weights_regularizer=slim.l2_regularizer(4e-4),
+                        activation_fn=tf.nn.relu):
+        net = DME_inception(features_transpose, 1, 256)
+        net = slim.conv2d(net, 256, 1, 1, data_format='NCHW', scope='conv1x1_1')
+        net = DME_inception(net, 2, 128)
+        net = slim.conv2d(net, 128, 1, 1, data_format='NCHW', scope='conv1x1_2')
+        net = DME_inception(net, 3, 64)
+        net = slim.conv2d(net, 1, 1, 1, data_format='NCHW', scope='conv1x1_3')
+    return net
 
 
-
-def DME(features, batch_size, image_height, image_weight):
-    front_end, init_DME_fn = DME_front_end(features)
+def DME_model(features):
+    front_end, init_vgg16_fn = DME_front_end(features)
+    feature_map = DME_back_end(front_end)
+    output = tf.transpose(feature_map, [0, 2, 3, 1])
+    return output, init_vgg16_fn

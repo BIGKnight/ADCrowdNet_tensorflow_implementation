@@ -1,0 +1,64 @@
+{
+	"folders": [
+		{
+			"path": "/home/zzn/PycharmProjects/ADCrowdNet"
+		},
+		{
+			"path": "/home/zzn/SANet_implementation-master/lib/python3.5/site-packages/tensorflow/include"
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"array": "cpp",
+			"atomic": "cpp",
+			"hash_map": "cpp",
+			"hash_set": "cpp",
+			"*.tcc": "cpp",
+			"cctype": "cpp",
+			"chrono": "cpp",
+			"clocale": "cpp",
+			"cmath": "cpp",
+			"complex": "cpp",
+			"condition_variable": "cpp",
+			"cstdarg": "cpp",
+			"cstddef": "cpp",
+			"cstdint": "cpp",
+			"cstdio": "cpp",
+			"cstdlib": "cpp",
+			"cstring": "cpp",
+			"ctime": "cpp",
+			"cwchar": "cpp",
+			"cwctype": "cpp",
+			"deque": "cpp",
+			"unordered_map": "cpp",
+			"unordered_set": "cpp",
+			"vector": "cpp",
+			"exception": "cpp",
+			"string_view": "cpp",
+			"fstream": "cpp",
+			"functional": "cpp",
+			"initializer_list": "cpp",
+			"iosfwd": "cpp",
+			"iostream": "cpp",
+			"istream": "cpp",
+			"limits": "cpp",
+			"memory": "cpp",
+			"mutex": "cpp",
+			"new": "cpp",
+			"ostream": "cpp",
+			"numeric": "cpp",
+			"ratio": "cpp",
+			"sstream": "cpp",
+			"stdexcept": "cpp",
+			"streambuf": "cpp",
+			"system_error": "cpp",
+			"thread": "cpp",
+			"cinttypes": "cpp",
+			"type_traits": "cpp",
+			"tuple": "cpp",
+			"typeindex": "cpp",
+			"typeinfo": "cpp",
+			"utility": "cpp"
+		}
+	}
+}

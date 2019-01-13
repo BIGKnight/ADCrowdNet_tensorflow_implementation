@@ -8,6 +8,8 @@
 #endif  // GOOGLE_CUDA
 
 namespace tensorflow{
+typedef Eigen::ThreadPoolDevice CPUDevice;
+typedef Eigen::GpuDevice GPUDevice;
 
 namespace shape_inference{
 Status CheckFormatConstraintsOnShape(const TensorFormat tensor_format,
@@ -248,14 +250,6 @@ Status ComputeDeformableConv2DDimension(const DeformableConv2DParameters& params
 
   return Status::OK();
 }
-
-template <typename Scalar>
-struct LaunchBatchMatMul<CPUDevice, Scalar>{
-  static void launch(OpKernelContext* context, const TensorShape& in_x_shape, const TensorShape& in_y_shape, const Scalar* in_x_ptr,
-                     const Scalar* in_y_ptr, bool adj_x, bool adj_y, Scalar* out){
-            LOG(FATAL) << "only implemented in GPU";
-    }
-};
 
 namespace {
 template <typename T>

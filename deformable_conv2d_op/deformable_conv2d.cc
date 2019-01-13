@@ -12,6 +12,8 @@ namespace tensorflow{
 using shape_inference::DimensionHandle;
 using shape_inference::InferenceContext;
 using shape_inference::ShapeHandle;
+typedef Eigen::ThreadPoolDevice CPUDevice;
+typedef Eigen::GpuDevice GPUDevice;
 
 // the inputs should have format NCHW, which is faster on GPUs
 // Once the attrs set, the values of them will not change any more during the training process.
@@ -304,7 +306,7 @@ class DeformableConv2DOp : public OpKernel{
         pads.push_back(dimensions.pad_cols);
         for (int32_t n = 0; n < num_ / im2col_step_; ++n) { // 分batch进行
         // transform image to col_buffer in order to use gemm
-            DeformableConv2DIm2Col<T>(
+            DeformableConv2DIm2Col<Device, T>()(
                 d, in_data_ptr + n * im2col_step_ * input_dim_, // dptr是获取输入数据的指针 + n * im2col_step_* input_dim 是让指针向后移动 一张图片的数据
                 offset_ptr + n * im2col_step_ * input_offset_dim_, //
                 mask_ptr + n * im2col_step_ * input_mask_dim_,
@@ -320,7 +322,7 @@ class DeformableConv2DOp : public OpKernel{
             TensorShape col_buffer_3d_shape = TensorShape({group_, K, N});
             T* output_temp_group_ptr = output_temp_4d_ptr + (n * group_ * M * N);
             LaunchBatchMatMul<Device, T>::launch(context, weight_3d_shape, col_buffer_3d_shape, weight_3d_ptr, col_buffer_ptr, false, false, output_temp_4d_ptr);
-            SwapAxis<T>(d, output_temp_4d_ptr, ToVector(TensorShape({num_ / im2col_step_, conv_out_channels_, im2col_step_, conv_out_spatial_dim_})), 1, 2);
+            SwapAxis<Device, T>()(d, output_temp_4d_ptr, ToVector(TensorShape({num_ / im2col_step_, conv_out_channels_, im2col_step_, conv_out_spatial_dim_})), 1, 2);
         
         //   Tensor<xpu, 3, DType> output_3d = output_4d[n];
         // for (int32_t g = 0; g < group_; ++g) {
@@ -460,7 +462,7 @@ class DeformableConv2DBackPropOp : public OpKernel{
         TensorShape out_grad_4d_shape = TensorShape({num_ / im2col_step_, im2col_step_, conv_out_channels_, conv_out_spatial_dim_});
         OP_REQUIRES(context, out_grad_4d.CopyFrom(out_grad, out_grad_4d_shape), errors::InvalidArgument("shape doesn't match"));
         T* out_grad_4d_ptr = out_grad_4d.template flat<T>().data();
-        SwapAxis<T>(d, out_grad_4d_ptr, ToVector(out_grad_4d_shape), 1, 2);// so the shape bacame:{num_ / im2col_step_, conv_out_channels_, im2col_step_, conv_out_spatial_dim_}
+        SwapAxis<Device, T>()(d, out_grad_4d_ptr, ToVector(out_grad_4d_shape), 1, 2);// so the shape bacame:{num_ / im2col_step_, conv_out_channels_, im2col_step_, conv_out_spatial_dim_}
         out_grad_4d_shape = TensorShape({num_ / im2col_step_, group_, K, N});
 
         Tensor col_buffer;
@@ -513,7 +515,7 @@ class DeformableConv2DBackPropOp : public OpKernel{
                 true, false, 
                 col_buffer_3d_ptr);
 
-            DeformableConv2DCol2ImCoord<T>(
+            DeformableConv2DCol2ImCoord<Device, T>()(
                 d, 
                 col_buffer_3d_ptr,
                 x_ptr + n * im2col_step_ * input_dim_, 
@@ -528,7 +530,7 @@ class DeformableConv2DBackPropOp : public OpKernel{
                 offset_grad_ptr + n * im2col_step_ * input_offset_dim_,
                 mask_grad_ptr + n * im2col_step_ * input_mask_dim_);
 
-            DeformableConv2DCol2Im<T>(
+            DeformableConv2DCol2Im<Device, T>()(
                 d,
                 col_buffer_3d_ptr,
                 offset_ptr + n * im2col_step_ * input_offset_dim_, 
@@ -541,7 +543,7 @@ class DeformableConv2DBackPropOp : public OpKernel{
                 params_.deformable_groups,
                 x_grad_ptr + n * im2col_step_ * input_dim_);
 
-            DeformableConv2DIm2Col<T>(d,
+            DeformableConv2DIm2Col<Device, T>()(d,
                 x_ptr + n * im2col_step_ * input_dim_, 
                 offset_ptr + n * im2col_step_ * input_offset_dim_, 
                 mask_ptr + n * im2col_step_ * input_mask_dim_,
@@ -643,8 +645,8 @@ class DeformableConv2DBackPropOp : public OpKernel{
         Name("DeformableConv2D").Device(DEVICE_CPU).TypeConstraint<T>("T"),\
         DeformableConv2DOp<CPUDevice, T>);  \
         REGISTER_KERNEL_BUILDER(Name("DeformableConv2DBackProp").Device(DEVICE_CPU).TypeConstraint<T>("T"), DeformableConv2DBackPropOp<CPUDevice, T>);
-REGISTER_CPU(float);
-REGISTER_CPU(double);
+//REGISTER_CPU(float);
+//REGISTER_CPU(double);
 
 #if GOOGLE_CUDA == 1
 #define REGISTER_GPU(T)              \

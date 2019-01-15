@@ -1,3 +1,4 @@
+#define EIGEN_USE_THREADS
 #include "deformable_conv2d.h"
 #include "tensorflow/core/framework/op_kernel.h"
 #include "tensorflow/core/framework/tensor.h"
@@ -233,11 +234,12 @@ class DeformableConv2DOp : public OpKernel{
         const TensorShape& mask_shape = mask.shape();
 
         DeformableConv2DDimensions dimensions;
-        OP_REQUIRES_OK(context, ComputeDeformableConv2DDimension(params_, input, filter, &dimensions));
+        OP_REQUIRES_OK(context, ComputeDeformableConv2DDimension(params_, input, filter, &dimensions, 0));
         //data_format = NCHW
+        // 这个地方我出了bug,原因是shapefromformat的参数必须是data_format, N, H, W, C,因为其内部是根据data_format来决定是否需要进行transpose, 如何第三个参数给了C, 且第一个参数为NCHW,那最后得到的结果会是NWCH
         TensorShape out_shape = ShapeFromFormat(
-        params_.data_format, dimensions.batch, dimensions.out_depth, dimensions.out_rows,
-        dimensions.out_cols);
+        params_.data_format, dimensions.batch, dimensions.out_rows,
+        dimensions.out_cols, dimensions.out_depth);
 
         // Output tensor is of the following dimensions:
         // [ in_batch, out_depth, out_rows, out_cols]
@@ -430,7 +432,7 @@ class DeformableConv2DBackPropOp : public OpKernel{
 
         DeformableConv2DDimensions dimensions;
         
-        OP_REQUIRES_OK(context, ComputeDeformableConv2DDimension(params_, x, filter, &dimensions));
+        OP_REQUIRES_OK(context, ComputeDeformableConv2DDimension(params_, x, filter, &dimensions, 1));
 
         LayerSetUp(x_shape, filter_shape, offset_shape, mask_shape, out_grad_shape);
 

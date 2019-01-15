@@ -1,10 +1,9 @@
-from __future__ import absolute_import
 import tensorflow as tf
 import os.path as osp
 from tensorflow.python.framework import ops
 
 filename = osp.join(osp.dirname(__file__), 'deformable_conv2d.so')
-deformable_conv2d_module = tf.load_op_library(filename)
+deformable_conv2d_module = tf.load_op_library('./deformable_conv2d.so')
 deformable_conv2d_op = deformable_conv2d_module.deformable_conv2d
 deformable_conv2d_grad_op = deformable_conv2d_module.deformable_conv2d_back_prop
 
@@ -65,3 +64,4 @@ def _deformable_conv2d_back_prop(op, grad):
     # compute gradient
     data_grad = deformable_conv2d_grad_op(data, filter, offset, mask, grad, strides, num_groups, deformable_groups, im2col_step, no_bias, pads, data_format, dilations)
     return data_grad # List of 4 Tensor, since we have 4 input
+

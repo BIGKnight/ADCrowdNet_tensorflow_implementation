@@ -159,7 +159,7 @@ Status InitDeformableConv2DParameters(const OpKernelConstruction* context,
 
 Status ComputeDeformableConv2DDimension(const DeformableConv2DParameters& params,
                               const Tensor& input, const Tensor& filter,
-                              DeformableConv2DDimensions* dimensions) {
+                              DeformableConv2DDimensions* dimensions, int flag) {
   // Check that 2D convolution input and filter have exactly 4 dimensions.
   TF_REQUIRES(input.dims() == 4,
               errors::InvalidArgument("input must be 4-dimensional",
@@ -186,7 +186,7 @@ Status ComputeDeformableConv2DDimension(const DeformableConv2DParameters& params
   TF_REQUIRES(in_depth % patch_depth == 0,
               errors::InvalidArgument(
                   "input depth must be evenly divisible by filter depth: ",
-                  in_depth, " vs ", patch_depth));
+                  in_depth, " vs ", patch_depth, ' flag: ', flag));
 
   // The first dimension for filter is out_depth.
   const int out_depth = static_cast<int>(filter.dim_size(0));

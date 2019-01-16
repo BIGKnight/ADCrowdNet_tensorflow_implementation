@@ -21,15 +21,22 @@ if __name__ == '__main__':
     x = tf.placeholder(tf.float32, shape=[None, None, None, 3], name="input")
     y = tf.placeholder(tf.float32, shape=[None, None, None, 1], name="label")
 
-    estimated_density_map = DME_deformable.DME_model(x, 1, 384, 512)
+    estimated_density_map, front_end = DME_deformable.DME_model(x, 1, 384, 512)
 
     estimated_counting = tf.reduce_sum(estimated_density_map, reduction_indices=[1, 2, 3], name='estimated_counting')
     gt_counting = tf.cast(tf.reduce_sum(y, reduction_indices=[1, 2, 3]), tf.float32)
 
-    sum_filter = tf.constant([1., 1., 1., 1.], dtype=tf.float32, shape=[2, 2, 1, 1])
-    gt_map = tf.nn.conv2d(y, sum_filter, [1, 2, 2, 1], padding='SAME')
+    sum_filter = tf.constant([1. for i in range(64)], dtype=tf.float32, shape=[8, 8, 1, 1])
+    gt_map = tf.nn.conv2d(y, sum_filter, [1, 8, 8, 1], padding='SAME')
 
-    loss = tf.losses.mean_squared_error(gt_map, predictions=estimated_density_map)
+    loss = tf.squeeze(
+        tf.reduce_mean(
+            tf.reduce_sum(
+                tf.square(estimated_density_map - gt_map),
+                reduction_indices=[1, 2, 3]),
+            axis=0, name='loss')
+        / 2)
+
     train_op = tf.train.AdamOptimizer(1e-5).minimize(loss=loss, global_step=tf.train.get_global_step())
 
     AE_batch = tf.abs(tf.subtract(estimated_counting, gt_counting))
@@ -45,11 +52,6 @@ if __name__ == '__main__':
         for i in range(epoch):
             shuffle_batch = np.random.permutation(image_train_num // batch_size)
             for j in range(image_train_num // batch_size):
-                # train
-                start = (shuffle_batch[j] * batch_size) % image_train_num
-                end = min(start + batch_size, image_train_num)
-                sess.run(train_op, feed_dict={x: image_train[start:end], y: gt_train[start:end]})
-                step = step + 1
 
                 # validate
                 if step % 50 == 0:
@@ -65,28 +67,36 @@ if __name__ == '__main__':
                         loss_.append(loss_eval)
                         MAE_.append(batch_average_error)
                         MSE_.append(batch_square_error)
+                    #                         print(k, batch_average_error)
 
                     loss_ = np.reshape(loss_, [-1])
                     MAE_ = np.reshape(MAE_, [-1])
                     MSE_ = np.reshape(MSE_, [-1])
-
+                    print(loss_)
+                    print(MAE_)
+                    #                     print(MSE_)
                     # calculate the validate loss, validate MAE and validate RMSE
                     validate_loss = np.mean(loss_)
                     validate_MAE = np.mean(MAE_)
                     validate_RMSE = np.sqrt(np.mean(MSE_))
 
                     # show one of the validate samples
-                    figure, (origin, density_gt, pred) = plt.subplots(1, 3, figsize=(20, 4))
+                    figure, (origin, density_gt, pred, front_ground) = plt.subplots(1, 4, figsize=(20, 4))
                     origin.imshow(image_validate[1])
                     origin.set_title('Origin Image')
-                    gt_validate_down_sampling_map, predict_den, gt_counts, pred_counts = sess.run(
-                        [gt_map, estimated_density_map, gt_counting, estimated_counting],
+
+                    front_g, gt_validate_down_sampling_map, predict_den, gt_counts, pred_counts = sess.run(
+                        [front_end, gt_map, estimated_density_map, gt_counting, estimated_counting],
                         feed_dict={x: image_validate[1:2], y: gt_validate[1:2]})
+
                     density_gt.imshow(np.squeeze(gt_validate_down_sampling_map), cmap=plt.cm.jet)
                     density_gt.set_title('ground_truth')
 
                     predict_den = np.squeeze(predict_den)
                     pred.imshow(predict_den, cmap=plt.cm.jet)
+                    front_ground.imshow(np.squeeze(front_g), cmap=plt.cm.jet)
+                    front_ground.set_title('vgg_output')
+
                     plt.suptitle("one sample from the validate")
                     plt.show()
 
@@ -104,3 +114,10 @@ if __name__ == '__main__':
                     if MAE > validate_MAE:
                         MAE = validate_MAE
                         saver.save(sess, './checkpoint_dir/MyModel_deformable')
+
+                # train
+                start = (shuffle_batch[j] * batch_size) % image_train_num
+                end = min(start + batch_size, image_train_num)
+                sess.run(train_op, feed_dict={x: image_train[start:end], y: gt_train[start:end]})
+                step = step + 1
+

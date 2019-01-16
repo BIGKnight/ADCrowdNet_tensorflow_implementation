@@ -7,6 +7,7 @@
 #include "tensorflow/core/framework/attr_value.pb.h"
 #include "deformable_conv2d_utils.h"
 #include <cmath>
+#include <stdio.h>
 
 namespace tensorflow{
 
@@ -296,9 +297,10 @@ class DeformableConv2DOp : public OpKernel{
         OP_REQUIRES(context, weight_3d.CopyFrom(filter, weight_3d_shape), errors::InvalidArgument("shape doesn't match"));
         T* weight_3d_ptr = weight_3d.template flat<T>().data();
         
-        Tensor* output_temp_4d = nullptr;
+        Tensor* output_temp_4d = NULL;
         OP_REQUIRES_OK(context, context->allocate_output(0, out_shape, &output_temp_4d));
-        T* output_temp_4d_ptr = output_temp_4d->template flat<T>().data();
+        auto output_temp_4d_ptr = output_temp_4d->template flat<T>().data();
+//      auto output__ptr = output_temp_4d->flat<T>();
         /**
          * 这样的话下面计算矩阵乘法的时候直接就写到这个输出里了
          * 但是注意的是作者实现的时候划分ｓｔｅｐ，这个时候其实是往ｓｈａｐｅ为｛num_ / im2col_step_, group_, M, N｝的输出里写的，所以最后一定要置换一下维度的位置
@@ -322,23 +324,13 @@ class DeformableConv2DOp : public OpKernel{
                 col_buffer_ptr
                 );
             TensorShape col_buffer_3d_shape = TensorShape({group_, K, N});
-            T* output_temp_group_ptr = output_temp_4d_ptr + (n * group_ * M * N);
-            LaunchBatchMatMul<Device, T>::launch(context, weight_3d_shape, col_buffer_3d_shape, weight_3d_ptr, col_buffer_ptr, false, false, output_temp_4d_ptr);
-            SwapAxis<Device, T>()(d, output_temp_4d_ptr, ToVector(TensorShape({num_ / im2col_step_, conv_out_channels_, im2col_step_, conv_out_spatial_dim_})), 1, 2);
-        
-        //   Tensor<xpu, 3, DType> output_3d = output_4d[n];
-        // for (int32_t g = 0; g < group_; ++g) {
-        //     // Legacy approach shown here for comparison:
-        //     //   Assign(output_3d[g], req[dmconv::kOut], dot(weight_3d[g], col_buffer_3d[g]));
-        //     // linalg_gemm(weight_3d[g], col_buffer_3d[g], output_3d[g], false, false, s, kWriteTo); //将得到的做点乘法
-        //     T* weight_3d_group_shape = TensorShape({1, M, K});
-        //     T* weight_3d_group_ptr = weight_3d_ptr + g * K * M;
-        //     T* col_buffer_group_3d_shape = TensorShape({1, K, N});
-        //     T* col_buffer_group_3d_ptr = col_buffer_ptr + g * K * N;
-        //     T* output_temp_group_ptr = output_temp_4d_ptr + (n * group_ + g) * M * N;
-        //     LaunchBatchMatMul<GPUDevice, T>::launch(context, weight_3d_group_shape, col_buffer_group_3d_shape, weight_3d_group_ptr, col_buffer_group_3d_ptr, false, false, output_temp_group_ptr);
-        // }
-        }
+
+            auto output_temp_group_ptr = output_temp_4d_ptr + (n * group_ * M * N);
+
+            LaunchBatchMatMul<Device, T>::launch(context, weight_3d_shape, col_buffer_3d_shape, weight_3d_ptr, col_buffer_ptr, false, false, output_temp_group_ptr);
+
+//            SwapAxis<Device, T>()(d, output_temp_4d_ptr, ToVector(TensorShape({num_ / im2col_step_, conv_out_channels_, im2col_step_, conv_out_spatial_dim_})), 1, 2);
+            }
     }
 
 
@@ -387,9 +379,9 @@ class DeformableConv2DOp : public OpKernel{
         bias_term_ = !params_.no_bias; //
         kernel_dim_ = conv_in_channels_ / group_ * filter_shape.dim_size(2) * filter_shape.dim_size(3); //Size()返回tensor中元素个数，即各维度大小的乘积，所以这里的kernel_dim的意思是卷积核的参数个数了．
         conv_out_spatial_dim_ = ProdShape(oshape, 2, oshape.dims()); //ProdShape(dimstart, dimend)返回指定维度大小乘积, 这个变量代表每个通道的像素点个数, oshape.ndim()返回这个shape的维度，假设是NCHW那么返回4,则为 H * W，
-        col_offset_ = kernel_dim_ * conv_out_spatial_dim_;//kernel_dim代表一个卷积核参数的个数，conv_out_spatial_dim_相当于特征图上的坐标个数，那这个变量相当于总共需要的偏移量
-        weight_offset_ = conv_out_channels_ * kernel_dim_ / group_;//这里应该是所有的权重的个数，也就是需要求的权重偏移的个数
-        output_offset_ = conv_out_channels_ * conv_out_spatial_dim_ / group_;//这里是输出通道数乘上每个通道的像素点的个数，所以结果应该是输出的总维度，就是C*H*W
+//        col_offset_ = kernel_dim_ * conv_out_spatial_dim_;//kernel_dim代表一个卷积核参数的个数，conv_out_spatial_dim_相当于特征图上的坐标个数，那这个变量相当于总共需要的偏移量
+//        weight_offset_ = conv_out_channels_ * kernel_dim_ / group_;//这里应该是所有的权重的个数，也就是需要求的权重偏移的个数
+//        output_offset_ = conv_out_channels_ * conv_out_spatial_dim_ / group_;//这里是输出通道数乘上每个通道的像素点的个数，所以结果应该是输出的总维度，就是C*H*W
         im2col_step_ = std::min(params_.im2col_step, num_);
         col_buffer_size_ = kernel_dim_ * group_ * im2col_step_ * conv_out_spatial_dim_;// 开辟的缓存大小// size of the column buffer used for storing im2col-ed pixels
        
@@ -473,8 +465,13 @@ class DeformableConv2DBackPropOp : public OpKernel{
         TensorShape col_buffer_3d_shape = TensorShape({group_, M, N});
         //****
         Tensor* dweight_3d = nullptr;
-        TensorShape dweight_3d_shape = TensorShape({group_, K, M});
-        OP_REQUIRES_OK(context, context->allocate_output(1, dweight_3d_shape, &dweight_3d));
+        /**
+        * 注意这个地方的shape不能和原代码一样是{group_, K, M}, 因为TensorFlow的输出的shape就是在这个地方allocate_output的时候得到的输出,
+        * 而且反正直接都是对flat后的向量在操作,直接设置为{output_channels, input_channels, h, w},也就是filter_shape就好了,大小是一样的,
+        *
+        **/
+//        TensorShape dweight_3d_shape = TensorShape({group_, K, M});
+        OP_REQUIRES_OK(context, context->allocate_output(1, filter_shape, &dweight_3d));
         T* dweight_3d_ptr = dweight_3d->template flat<T>().data();
         
         Tensor* x_grad = nullptr;
@@ -498,13 +495,13 @@ class DeformableConv2DBackPropOp : public OpKernel{
         TShape dilation_shape = SubVector(params_.dilations, 2, 4);
 
         Tensor dweight_3d_temp;
-        OP_REQUIRES_OK(context, context->allocate_temp(DataTypeToEnum<T>::value, dweight_3d_shape, &dweight_3d_temp));
+        OP_REQUIRES_OK(context, context->allocate_temp(DataTypeToEnum<T>::value, filter_shape, &dweight_3d_temp));
         T* dweight_3d_temp_ptr = dweight_3d_temp.template flat<T>().data();
 
         setZero<Device, T>()(d, group_ * M * N, col_buffer_3d_ptr);
         setZero<Device, T>()(d, ProdShape(x_shape, 0, x_shape.dims()), x_grad_ptr);
-        setZero<Device, T>()(d, ProdShape(dweight_3d_shape, 0, dweight_3d_shape.dims()), dweight_3d_ptr);
-        setZero<Device, T>()(d, ProdShape(dweight_3d_shape, 0, dweight_3d_shape.dims()), dweight_3d_temp_ptr);
+        setZero<Device, T>()(d, ProdShape(filter_shape, 0, filter_shape.dims()), dweight_3d_ptr);
+        setZero<Device, T>()(d, ProdShape(filter_shape, 0, filter_shape.dims()), dweight_3d_temp_ptr);
 
         for(int n = 0;n < num_ / im2col_step_ ;++n){
             TensorShape out_grad_3d_shape = TensorShape({group_, K, N});
@@ -656,9 +653,7 @@ class DeformableConv2DBackPropOp : public OpKernel{
     REGISTER_KERNEL_BUILDER(Name("DeformableConv2DBackProp").Device(DEVICE_GPU).TypeConstraint<T>("T"), DeformableConv2DBackPropOp<GPUDevice, T>);
 REGISTER_GPU(float);
 REGISTER_GPU(double);
+//TF_CALL_float(REGISTER_GPU);
+//TF_CALL_double(REGISTER_GPU);
 #endif
-// TF_CALL_float(REGISTER);
-// TF_CALL_double(REGISTER);
-
-
 }

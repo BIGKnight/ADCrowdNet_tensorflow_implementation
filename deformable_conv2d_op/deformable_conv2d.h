@@ -115,5 +115,99 @@ template <typename Device, typename DType>
 struct setZero {
     void operator() (const Device& d, int n, DType* result_data);
 };
+
+template <typename Device, typename DType>
+struct setOne {
+    void operator()(const Device& d, int n, DType* result_data);
+};
+
+template <typename Device, typename DType>
+struct setNumAtIndex{
+    void operator()(const Device& d, DType num, int index, DType* data);
+};
+
+
+// 这里踩了一个深不见底的坑, c++很不熟悉的锅, 一开始我没有在h里部分特化,而是将部分特化放在了.cu.cc里,这样一来的话.cc里调用的时候一直都拿不到用
+// GPUDEVICE特化的那个functor, 导致kernel一直没作用
+// 此外, 还有一个坑是, 由于我只注册了GPU下的op,所以如果我想直接在cc里用Flat(Index index)这个重载来赋值的话是不行的, 因为包括.data()获得的指针的内容都是GPU
+//下的地址, 即是显存的地址, 而cc是运行在cpu下的, 所以如果在cc里赋值的话, 会将值误赋到内存地址上, 会直接报段错误(Process finished with exit code 139 (interrupted by signal 11: SIGSEGV)),
+// 因为内存压根就没有分配空间, 所有allocate的空间都在显存上
+
+#if GOOGLE_CUDA == 1
+template <typename DType>
+struct SwapAxis<Eigen::GpuDevice, DType>{
+    void operator()(const Eigen::GpuDevice& d, DType* input_data, const TShape& origin_shape, const int axis_x, const int axis_y);
+};
+#endif
+
+#if GOOGLE_CUDA == 1
+template <typename DType>
+struct DeformableConv2DIm2Col<Eigen::GpuDevice, DType>{
+    void operator()(
+    const Eigen::GpuDevice& d,
+    const DType* data_im, const DType* data_offset, const DType* data_mask,
+    const TShape& im_shape, const TShape& col_shape, const TShape& kernel_shape,
+    const TShape& pad, const TShape& stride, const TShape& dilation,
+    const int32_t deformable_group, DType* data_col
+    );
+};
+#endif
+
+#if GOOGLE_CUDA == 1
+template <typename DType>
+struct DeformableConv2DCol2Im<Eigen::GpuDevice, DType>{
+    void operator()(
+    const Eigen::GpuDevice& d,
+    const DType* data_col, const DType* data_offset, const DType* data_mask,
+    const TShape& im_shape, const TShape& col_shape, const TShape& kernel_shape,
+    const TShape& pad, const TShape& stride,
+    const TShape& dilation, const int32_t deformable_group,
+    DType* grad_im
+    );
+};
+#endif
+
+#if GOOGLE_CUDA == 1
+template <typename DType>
+struct DeformableConv2DCol2ImCoord<Eigen::GpuDevice, DType>{
+    void operator()(
+    const Eigen::GpuDevice& d, const DType* data_col, const DType* data_im, const DType* data_offset, const DType* data_mask,
+    const TShape& im_shape, const TShape& col_shape, const TShape& kernel_shape,
+    const TShape& pad, const TShape& stride,
+    const TShape& dilation, const int32_t deformable_group,
+    DType* grad_offset, DType* grad_mask
+    );
+};
+#endif
+
+#if GOOGLE_CUDA == 1
+template <typename DType>
+struct setNumAtIndex<Eigen::GpuDevice, DType>{
+    void operator()(const Eigen::GpuDevice& d, DType num, int index, DType* data);
+};
+#endif
+
+#if GOOGLE_CUDA == 1
+template <typename DType>
+struct setZero<Eigen::GpuDevice, DType>{
+    void operator() (const Eigen::GpuDevice& d, int n, DType* result_data);
+};
+#endif
+
+#if GOOGLE_CUDA == 1
+template <typename DType>
+struct setOne<Eigen::GpuDevice, DType>{
+    void operator()(const Eigen::GpuDevice& d, int n, DType* result_data);
+};
+#endif
+
+#if GOOGLE_CUDA == 1
+template <typename DType>
+struct pureAddTo<Eigen::GpuDevice, DType>{
+    void operator() (const Eigen::GpuDevice& d, const int n, DType* result_data, const DType* right_data);
+};
+#endif
+
+
 }
 #endif

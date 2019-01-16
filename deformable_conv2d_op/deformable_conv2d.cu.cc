@@ -370,54 +370,65 @@ template <typename DType>
 __global__ void setZeroKernel(const int n, DType* result_data)
 {
 
-  CUDA_1D_KERNEL_LOOP(index, n) {
-      *(result_data + index)=DType(0);
+     CUDA_1D_KERNEL_LOOP(index, n){
+      *(result_data + index) = DType(0);
   }
   
 }
 
 template <typename DType>
-struct SwapAxis<GPUDevice, DType>{
-    void operator()(const GPUDevice& d, DType* input_data, const TShape& origin_shape, const int axis_x, const int axis_y)
-    {
-        if (axis_x > axis_y){
-            LOG(FATAL) << "Axis_x must be bigger or equal to Axis_y";
-            return;
-        }
-        else if(axis_x == axis_y) return;
-        else if((axis_x + 1) != axis_y){
-            LOG(FATAL) << "Axis_x must be adjacent to Axis_y";
-            return;
-        }
-        int num_kernels = 1;
-        for(int i = 0;i<axis_x;i++){
-            num_kernels *= origin_shape[i];
-        }
-        int cuda_mem_size = 1;
-            for (int i = axis_x;i<origin_shape.size();i++){
-                cuda_mem_size *= origin_shape[i];
-            }
-        int min_unit_size = 1;
-        for(int i = axis_y + 1;i<origin_shape.size();i++){
-            min_unit_size *= origin_shape[i];
-        }
-        CudaLaunchConfig config = GetCudaLaunchConfig(num_kernels, d);
-        SwapAxisKernel<DType><<<config.block_count, config.thread_per_block,
-                     0, d.stream()>>>(num_kernels,cuda_mem_size,min_unit_size, input_data, origin_shape.size(), origin_shape[axis_x], origin_shape[axis_y], axis_x, axis_y);
+__global__ void setOneKernel(const int n, DType* result_data)
+{
+    CUDA_1D_KERNEL_LOOP(index, n){
+        *(result_data + index) = DType(1);
     }
-};
+}
+
+template <typename DType>
+__global__ void setNumAtIndexKernel(DType num, int index, DType* data)
+{
+    *(data + index) = num;
+}
+
+
+template <typename DType>
+void SwapAxis<GPUDevice, DType>::operator()(const GPUDevice& d, DType* input_data, const TShape& origin_shape, const int axis_x, const int axis_y){
+    //        if (axis_x > axis_y){
+//            LOG(FATAL) << "Axis_x must be bigger or equal to Axis_y";
+//            return;
+//        }
+//        else if(axis_x == axis_y) return;
+//        else if((axis_x + 1) != axis_y){
+//            LOG(FATAL) << "Axis_x must be adjacent to Axis_y";
+//            return;
+//        }
+//        int num_kernels = 1;
+//        for(int i = 0;i<axis_x;i++){
+//            num_kernels *= origin_shape[i];
+//        }
+//        int cuda_mem_size = 1;
+//            for (int i = axis_x;i<origin_shape.size();i++){
+//                cuda_mem_size *= origin_shape[i];
+//            }
+//        int min_unit_size = 1;
+//        for(int i = axis_y + 1;i<origin_shape.size();i++){
+//            min_unit_size *= origin_shape[i];
+//        }
+//        CudaLaunchConfig config = GetCudaLaunchConfig(num_kernels, d);
+//        SwapAxisKernel<DType><<<config.block_count, config.thread_per_block,
+//                     0, d.stream()>>>(num_kernels,cuda_mem_size,min_unit_size, input_data, origin_shape.size(), origin_shape[axis_x], origin_shape[axis_y], axis_x, axis_y);
+}
 
 
 // 函数不允许模板部分特化, c++只允许class和struct部分特化
 template <typename DType>
-struct DeformableConv2DCol2ImCoord<GPUDevice, DType>{
-    void operator()(
+void DeformableConv2DCol2ImCoord<GPUDevice, DType>::operator()(
     const GPUDevice& d, const DType* data_col, const DType* data_im, const DType* data_offset, const DType* data_mask,
     const TShape& im_shape, const TShape& col_shape, const TShape& kernel_shape,
     const TShape& pad, const TShape& stride,
     const TShape& dilation, const int32_t deformable_group,
-    DType* grad_offset, DType* grad_mask
-    ){
+    DType* grad_offset, DType* grad_mask)
+    {
       int  num_spatial_axes = kernel_shape.size();
       int  num_kernels = col_shape[1] * col_shape[2] * col_shape[3] * 2 * kernel_shape[0] * kernel_shape[1] * deformable_group;
       int  channel_per_deformable_group = col_shape[0] / deformable_group;
@@ -443,121 +454,131 @@ struct DeformableConv2DCol2ImCoord<GPUDevice, DType>{
         LOG(FATAL) << "col2im_nd_gpu does not support computation with "
           << num_spatial_axes << " spatial axes";
         }
-    }
-};
+}
 
 template <typename DType>
-struct DeformableConv2DCol2Im<GPUDevice, DType>{
-    void operator()(
+void DeformableConv2DCol2Im<GPUDevice, DType>::operator()(
     const GPUDevice& d,
     const DType* data_col, const DType* data_offset, const DType* data_mask,
     const TShape& im_shape, const TShape& col_shape, const TShape& kernel_shape,
     const TShape& pad, const TShape& stride,
     const TShape& dilation, const int32_t deformable_group,
-    DType* grad_im
-    ){
-      int  num_spatial_axes = kernel_shape.size();
-      int  im_size = ProdShape(im_shape, 1, im_shape.size());
-      int  channel_per_deformable_group = im_shape[1] / deformable_group;
-      int  num_kernels = ProdShape(col_shape, 0, col_shape.size());
-      // num_axes should be smaller than block size
-      CudaLaunchConfig config = GetCudaLaunchConfig(num_kernels, d);
-      CHECK_LT(num_spatial_axes, config.thread_per_block);
-        //   using namespace mxnet_op;
-      switch (num_spatial_axes) {
-      case 2:
-        // To avoid involving atomic operations, we will launch one kernel per
-        // bottom dimension, and then in the kernel add up the top dimensions.
-        // NOLINT_NEXT_LINE(whitespace/operators)
-            DeformableConv2DCol2ImKernel<DType><<<config.block_count, config.thread_per_block,
-                                   0, d.stream()>>>(
-            num_kernels, data_col, data_offset, data_mask, im_shape[1], im_shape[2], im_shape[3],
-            kernel_shape[0], kernel_shape[1], pad[0], pad[1], stride[0], stride[1],
-            dilation[0], dilation[1], channel_per_deformable_group,
-            col_shape[1], deformable_group, col_shape[2], col_shape[3], grad_im);
-        // MSHADOW_CUDA_POST_KERNEL_CHECK(modulated_deformable_col2im_gpu_kernel);
-        break;
-      default:
-        LOG(FATAL) << "col2im_nd_gpu does not support computation with "
-                   << num_spatial_axes << " spatial axes";
-        }
-    }
-};
+    DType* grad_im)
+    {
+       int  num_spatial_axes = kernel_shape.size();
+          int  im_size = ProdShape(im_shape, 1, im_shape.size());
+          int  channel_per_deformable_group = im_shape[1] / deformable_group;
+          int  num_kernels = ProdShape(col_shape, 0, col_shape.size());
+          // num_axes should be smaller than block size
+          CudaLaunchConfig config = GetCudaLaunchConfig(num_kernels, d);
+          CHECK_LT(num_spatial_axes, config.thread_per_block);
+            //   using namespace mxnet_op;
+          switch (num_spatial_axes) {
+          case 2:
+            // To avoid involving atomic operations, we will launch one kernel per
+            // bottom dimension, and then in the kernel add up the top dimensions.
+            // NOLINT_NEXT_LINE(whitespace/operators)
+                DeformableConv2DCol2ImKernel<DType><<<config.block_count, config.thread_per_block,
+                                       0, d.stream()>>>(
+                num_kernels, data_col, data_offset, data_mask, im_shape[1], im_shape[2], im_shape[3],
+                kernel_shape[0], kernel_shape[1], pad[0], pad[1], stride[0], stride[1],
+                dilation[0], dilation[1], channel_per_deformable_group,
+                col_shape[1], deformable_group, col_shape[2], col_shape[3], grad_im);
+            // MSHADOW_CUDA_POST_KERNEL_CHECK(modulated_deformable_col2im_gpu_kernel);
+            break;
+          default:
+            LOG(FATAL) << "col2im_nd_gpu does not support computation with "
+                       << num_spatial_axes << " spatial axes";
+          }
+}
 
 template <typename DType>
-struct DeformableConv2DIm2Col<GPUDevice, DType>{
-    void operator()(
+void DeformableConv2DIm2Col<GPUDevice, DType>::operator()(
     const GPUDevice& d,
     const DType* data_im, const DType* data_offset, const DType* data_mask,
     const TShape& im_shape, const TShape& col_shape, const TShape& kernel_shape,
     const TShape& pad, const TShape& stride, const TShape& dilation,
-    const int32_t deformable_group, DType* data_col
-    ){
-        // num_axes should be smaller than block size
-    int  num_spatial_axes = kernel_shape.size();
-    int  channel_per_deformable_group = im_shape[1] / deformable_group; // imshape[1] = 输入图的通道数
-    int  num_kernels = im_shape[1] * ProdShape(col_shape, 1, col_shape.size()); // K * N / k.Size(), k = filter, col_shape = [K, im2col_step_, H, W]
-    CudaLaunchConfig config = GetCudaLaunchConfig(num_kernels, d);
-    CHECK_LT(num_spatial_axes, config.thread_per_block);
-    switch (num_spatial_axes) {
-    case 2:
-    DeformableConv2DIm2ColKernel<DType> // NOLINT_NEXT_LINE(whitespace/operators)
-        <<<config.block_count, config.thread_per_block, // 注意这里申请的block的个数是num_kernel个,
-           0, d.stream()>>>(
-           //CUDA对device(GPU )的内存管理主要通过cudaMalloc()、cudaFree()、cudaMemcpy() 进行管理。另外，从上述代码我们可以看到，
-           //add() 函数的调用比较奇怪相对于C语言来说，需要用add<<<M，N>>> 这种形式表明这是一个从host(CPU)代码调用device的代码，
-           //并且括号中的数值表明，M个block，每个block有 N个线程, 所以这个函数总共有M*N个线程。
-        num_kernels,
-        data_im,
-        data_offset,
-        data_mask,
-        im_shape[2], im_shape[3],
-        kernel_shape[0], kernel_shape[1],
-        pad[0], pad[1],
-        stride[0], stride[1],
-        dilation[0], dilation[1],
-        channel_per_deformable_group,
-        col_shape[1], im_shape[1],
-        deformable_group,
-        col_shape[2], col_shape[3],
-        data_col);
-        // MSHADOW_CUDA_POST_KERNEL_CHECK(modulated_deformable_im2col_gpu_kernel);
-        break;
-        default:
-        LOG(FATAL) << "im2col_nd_gpu does not support computation with "
-               << num_spatial_axes << " spatial axes";
-        }
-    }
-};
+    const int32_t deformable_group, DType* data_col)
+    {
+        int  num_spatial_axes = kernel_shape.size();
+        int  channel_per_deformable_group = im_shape[1] / deformable_group; // imshape[1] = 输入图的通道数
+        int  num_kernels = im_shape[1] * ProdShape(col_shape, 1, col_shape.size()); // K * N / k.Size(), k = filter, col_shape = [K, im2col_step_, H, W]
+        CudaLaunchConfig config = GetCudaLaunchConfig(num_kernels, d);
+        CHECK_LT(num_spatial_axes, config.thread_per_block);
+        switch (num_spatial_axes) {
+        case 2:
+        DeformableConv2DIm2ColKernel<DType> // NOLINT_NEXT_LINE(whitespace/operators)
+            <<<config.block_count, config.thread_per_block, // 注意这里申请的block的个数是num_kernel个,
+               0, d.stream()>>>(
+               //CUDA对device(GPU )的内存管理主要通过cudaMalloc()、cudaFree()、cudaMemcpy() 进行管理。另外，从上述代码我们可以看到，
+               //add() 函数的调用比较奇怪相对于C语言来说，需要用add<<<M，N>>> 这种形式表明这是一个从host(CPU)代码调用device的代码，
+               //并且括号中的数值表明，M个block，每个block有 N个线程, 所以这个函数总共有M*N个线程。
+            num_kernels,
+            data_im,
+            data_offset,
+            data_mask,
+            im_shape[2], im_shape[3],
+            kernel_shape[0], kernel_shape[1],
+            pad[0], pad[1],
+            stride[0], stride[1],
+            dilation[0], dilation[1],
+            channel_per_deformable_group,
+            col_shape[1], im_shape[1],
+            deformable_group,
+            col_shape[2], col_shape[3],
+            data_col);
+            // MSHADOW_CUDA_POST_KERNEL_CHECK(modulated_deformable_im2col_gpu_kernel);
+            break;
+            default:
+            LOG(FATAL) << "im2col_nd_gpu does not support computation with "
+                   << num_spatial_axes << " spatial axes";
+            }
+}
+
 
 template <typename DType>
-struct pureAddTo<GPUDevice, DType>{
-    void operator() (const GPUDevice& d, const int n, DType* result_data, const DType* right_data){
-        CudaLaunchConfig config = GetCudaLaunchConfig(n, d);
-        pureAddToKernel<DType> <<< config.block_count, config.thread_per_block, 0, d.stream() >>>(n, result_data, right_data);
-    }
-    
-};
+void setZero<GPUDevice, DType>::operator()(const GPUDevice& d, int n, DType* result_data){
+  CudaLaunchConfig config = GetCudaLaunchConfig(n ,d);
+  setZeroKernel<DType> <<< config.block_count, config.thread_per_block, 0, d.stream() >>>(n, result_data);
+}
 
 template <typename DType>
-struct setZero<GPUDevice, DType>{
-    void operator() (const GPUDevice& d, int n, DType* result_data){
-        CudaLaunchConfig config = GetCudaLaunchConfig(n, d);
-        setZeroKernel<DType> <<< config.block_count, config.thread_per_block, 0, d.stream() >>>(n, result_data);
-    }
-    
-};
+void pureAddTo<GPUDevice, DType>::operator()(const GPUDevice& d, const int n, DType* result_data, const DType* right_data){
+    CudaLaunchConfig config = GetCudaLaunchConfig(n, d);
+    pureAddToKernel<DType> <<< config.block_count, config.thread_per_block, 0, d.stream() >>>(n, result_data, right_data);
+}
 
-#define DECLARE_GPU_SPEC(DType)                                  \
-    template struct DeformableConv2DIm2Col<GPUDevice, DType>; \
-    template struct DeformableConv2DCol2Im<GPUDevice, DType>; \
-    template struct DeformableConv2DCol2ImCoord<GPUDevice, DType>; \
-    template struct pureAddTo<GPUDevice, DType>; \
-    template struct setZero<GPUDevice, DType>; \
-    template struct SwapAxis<GPUDevice, DType>;
+template <typename DType>
+void setOne<GPUDevice, DType>::operator()(const GPUDevice& d, int n, DType* result_data){
+  CudaLaunchConfig config = GetCudaLaunchConfig(n ,d);
+  setOneKernel<DType> <<< config.block_count, config.thread_per_block, 0, d.stream() >>>(n, result_data);
+}
 
-TF_CALL_float(DECLARE_GPU_SPEC);
-TF_CALL_double(DECLARE_GPU_SPEC);
+template <typename DType>
+void setNumAtIndex<GPUDevice, DType>::operator()(const GPUDevice& d, DType num, int index, DType* data){
+    CudaLaunchConfig config = GetCudaLaunchConfig(1 ,d);
+    setNumAtIndexKernel<DType> <<<config.block_count, config.thread_per_block, 0, d.stream() >>>(num, index, data);
+}
+
+// 必须注册一下, 如果不tf_call这些声明函数, TensorFlow是找不到这些cuda核的
+// 如果没有在这里实例化的话, 生成的.so会报类似于 undefined symbol: _ZN10tensorflow13setNumAtIndexIN5Eigen9GpuDeviceEfEclERKS2_fiPf的错误
+template struct DeformableConv2DIm2Col<GPUDevice, double>;
+template struct DeformableConv2DCol2Im<GPUDevice, double>;
+template struct DeformableConv2DCol2ImCoord<GPUDevice, double>;
+template struct pureAddTo<GPUDevice, double>;
+template struct setOne<GPUDevice, double>;
+template struct setZero<GPUDevice, double>;
+template struct SwapAxis<GPUDevice, double>;
+template struct setNumAtIndex<GPUDevice, double>;
+
+template struct DeformableConv2DIm2Col<GPUDevice, float>;
+template struct DeformableConv2DCol2Im<GPUDevice, float>;
+template struct DeformableConv2DCol2ImCoord<GPUDevice, float>;
+template struct pureAddTo<GPUDevice, float>;
+template struct setOne<GPUDevice, float>;
+template struct setZero<GPUDevice, float>;
+template struct SwapAxis<GPUDevice, float>;
+template struct setNumAtIndex<GPUDevice, float>;
 
 }
 #endif

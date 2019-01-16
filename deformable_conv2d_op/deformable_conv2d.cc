@@ -573,7 +573,7 @@ class DeformableConv2DBackPropOp : public OpKernel{
                     col_buffer_3d_ptr, 
                     false, true, 
                     dweight_3d_temp_ptr);
-                pureAddTo<Device, T>()(d, ProdShape(filter_shape, 0, filter_shape.dims()), dweight_3d_ptr, dweight_3d_temp_ptr );
+                pureAddTo<Device, T>()(d, ProdShape(filter_shape, 0, filter_shape.dims()), dweight_3d_ptr, dweight_3d_temp_ptr);
             }
         }
     }

@@ -72,8 +72,8 @@ if __name__ == '__main__':
                     loss_ = np.reshape(loss_, [-1])
                     MAE_ = np.reshape(MAE_, [-1])
                     MSE_ = np.reshape(MSE_, [-1])
-                    print(loss_)
-                    print(MAE_)
+                    # print(loss_)
+                    # print(MAE_)
                     #                     print(MSE_)
                     # calculate the validate loss, validate MAE and validate RMSE
                     validate_loss = np.mean(loss_)

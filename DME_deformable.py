@@ -68,7 +68,7 @@ def _deformable_conv2d_back_prop(op, grad):
         .Attr("dilations: list(int) = [1, 1, 1, 1]")
     '''
     # compute gradient
-    data_grad = deformable_conv2d_grad_op(
+    data_grad, filter_grad, offset_grad, mask_grad = deformable_conv2d_grad_op(
         input=data,
         filter=filter,
         offset=offset,
@@ -80,7 +80,7 @@ def _deformable_conv2d_back_prop(op, grad):
         padding=pads,
         data_format=data_format,
         dilations=dilations)
-    return data_grad # List of 4 Tensor, since we have 4 input
+    return [data_grad, filter_grad, offset_grad * 0.1, mask_grad * 0.1]# List of 4 Tensor, since we have 4 input
 
 
 #
@@ -103,6 +103,7 @@ def _deformable_conv2d_back_prop(op, grad):
 # the kernel_size and stride must be 2 integers which represents the directions of height and weight
 def deformable_conv2d(features, kernel_size, output_nums, input_nums, stride, batch_size, image_height, image_weight, index):
     kernel_arg_nums = kernel_size[0] * kernel_size[1]
+
     args = slim.conv2d(
         features,
         3 * kernel_arg_nums,
@@ -110,6 +111,7 @@ def deformable_conv2d(features, kernel_size, output_nums, input_nums, stride, ba
         stride,
         padding='SAME',
         data_format='NCHW',
+        weights_initializer=tf.zeros_initializer,
         scope='offset_mask_parameters_part_' + str(index))
 
     offset = tf.slice(
@@ -119,28 +121,30 @@ def deformable_conv2d(features, kernel_size, output_nums, input_nums, stride, ba
         name='offest_part_' + str(index)
     )
 
-    mask = tf.slice(
+    mask_origin = tf.slice(
         args,
         [0, 2 * kernel_arg_nums, 0, 0],
         [batch_size, kernel_arg_nums, image_height, image_weight],
-        name='mask_part_' + str(index)
+        name='mask_origin_part_' + str(index)
     )
+
+    mask_sigmoid = tf.sigmoid(mask_origin, name='mask_sigmoid_part_' + str(index))
 
     # only use the version of num_groups = 1
     weight = tf.get_variable(
         # name='deformable_kernel_inception_' + str(index) + '_' + str(kernel_size[0]) + 'x' + str(kernel_size[1]),
         name='weight_part_' + str(index),
         shape=[output_nums, input_nums, kernel_size[0], kernel_size[1]],
-        initializer=slim.xavier_initializer()
+        initializer=tf.random_uniform_initializer(maxval=1)
     )
 
     # print(features, kernel_size, output_nums, input_nums, stride, batch_size, image_height, image_weight, index)
 
     output = deformable_conv2d_op(
-        features,
+        input=features,
         filter=weight,
         offset=offset,
-        mask=mask,
+        mask=mask_sigmoid,
         strides=[1, 1, stride[0], stride[1]],
         num_groups=1,
         deformable_groups=1,
@@ -170,13 +174,13 @@ def DME_inception(features, index, output_nums, input_nums, batch_size, image_he
 
 def DME_back_end(features, input_nums, batch_size, image_height, image_weight):
     features_transpose = tf.transpose(features, [0, 3, 1, 2])
-    net = DME_inception(features_transpose, 1, 256, input_nums, batch_size, image_height=image_height, image_weight=image_weight)
-    net = slim.conv2d(net, 256, 1, 1, data_format='NCHW')
-    net = DME_inception(net, 2, 128, 256, batch_size, image_height=image_height, image_weight=image_weight)
-    net = slim.conv2d(net, 128, 1, 1, data_format='NCHW')
-    net = DME_inception(net, 3, 64, 128, batch_size, image_height=image_height, image_weight=image_weight)
-    net = slim.conv2d(net, 1, 1, 1, data_format='NCHW')
-    output = tf.transpose(net, [0, 2, 3, 1])
+    net_inception_1 = DME_inception(features_transpose, 1, 256, input_nums, batch_size, image_height=image_height, image_weight=image_weight)
+    net_inception_1 = slim.conv2d(net_inception_1, 256, 1, 1, data_format='NCHW')
+    net_inception_2 = DME_inception(net_inception_1, 2, 128, 256, batch_size, image_height=image_height, image_weight=image_weight)
+    net_inception_2 = slim.conv2d(net_inception_2, 128, 1, 1, data_format='NCHW')
+    net_inception_3 = DME_inception(net_inception_2, 3, 64, 128, batch_size, image_height=image_height, image_weight=image_weight)
+    net_inception_4 = slim.conv2d(net_inception_3, 1, 1, 1, data_format='NCHW')
+    output = tf.transpose(net_inception_4, [0, 2, 3, 1])
     return output
 
 
@@ -187,4 +191,7 @@ def DME_model(features, batch_size, image_height, image_weight):
     image_height = int(image_height / 8)
     image_weight = int(image_weight / 8)
     feature_map = DME_back_end(front_end, 512, batch_size, image_height=image_height, image_weight=image_weight)
-    return feature_map
+
+    front_g = slim.conv2d(front_end, 1, 1)
+
+    return feature_map, front_g

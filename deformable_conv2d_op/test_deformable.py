@@ -3,6 +3,8 @@ import tensorflow.contrib.slim as slim
 import tensorflow.contrib.slim.nets as nets
 # from deformable_conv2d_op.deformable_conv2d import deformable_conv2d_op
 import os.path as osp
+import math
+import numpy as np
 from tensorflow.python.framework import ops
 
 model_path = '/home/zzn/PycharmProjects/ADCrowdNet/vgg_pre-trained_variable_list/vgg_16.ckpt'
@@ -83,13 +85,17 @@ def _deformable_conv2d_back_prop(op, grad):
 
 
 if __name__ == '__main__':
-    input = tf.constant([1. for i in range(75)], shape=[3, 1, 5, 5])
-    filter = tf.constant([1. for i in range(27)], shape=[3, 1, 3, 3])
-    offset = tf.constant([1. for i in range(18*5*5*3)], shape=[3, 18, 5, 5])
-    mask = tf.constant([1. for i in range(9*5*5*3)], shape=[3, 9, 5, 5])
+    input = tf.constant([0.0287246for i in range(75)], shape=[1, 512, 48, 64])
+    # filter = tf.constant([1. for i in range(27)], shape=[256, 512, 3, 3])
+    min = - math.sqrt(6. / (3. * 3. * 512.))
+    max = math.sqrt(6. / (3. * 3. * 512.))
+    filter = tf.get_variable(name='weight_conv', shape=[3, 3, 512, 256], initializer=tf.random_uniform_initializer(min, max))
+    filter_deform = tf.transpose(filter, [3, 2, 0, 1])
+    offset = tf.constant([0. for i in range(55296)], shape=[1, 18, 48, 64])
+    mask = tf.constant([0.5 for i in range(27648)], shape=[1, 9, 48, 64])
     result = deformable_conv2d_op(
         input=input,
-        filter=filter,
+        filter=filter_deform,
         offset=offset,
         mask=mask,
         strides=[1, 1, 1, 1],
@@ -101,12 +107,15 @@ if __name__ == '__main__':
         data_format='NCHW',
         dilations=[1, 1, 1, 1])
 
-    filter_1 = tf.constant([1. for i in range(27)], shape=[3, 3, 1, 3])
-    conv2d = tf.nn.conv2d(input, filter_1, [1, 1, 1, 1], 'SAME', data_format='NCHW')
+    conv2d = tf.nn.conv2d(input, filter, [1, 1, 1, 1], 'SAME', data_format='NCHW')
 
     with tf.Session() as sess:
         init_op = tf.global_variables_initializer()
         sess.run(init_op)
-        print(sess.run(result))
+        a = sess.run(result)
+        b = sess.run(conv2d)
+        print(a)
+        print(np.mean(a))
         print('------------------------------------/n----------------------------------')
-        print(sess.run(conv2d))
+        print(b)
+        print(np.mean(b))

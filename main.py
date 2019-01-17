@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import sys
 import DME_deformable
+import DME
 
 result_output = open("/home/zzn/SANet_implementation-master/result_B_12.13.txt", "w")
 image_train_path = "/home/zzn/part_B_final/train_data/images_train.npy"
@@ -21,7 +22,8 @@ if __name__ == '__main__':
     x = tf.placeholder(tf.float32, shape=[None, None, None, 3], name="input")
     y = tf.placeholder(tf.float32, shape=[None, None, None, 1], name="label")
 
-    estimated_density_map, front_end = DME_deformable.DME_model(x, 1, 384, 512)
+    estimated_density_map, front_end, tmp_front_end, tmp_inception_value, tmp_1x1_value = DME_deformable.DME_model(x, 1, 384, 512)
+    # estimated_density_map, front_end, tmp_front_end, tmp_inception_value, tmp_1x1_value = DME.DME_model(x)
 
     estimated_counting = tf.reduce_sum(estimated_density_map, reduction_indices=[1, 2, 3], name='estimated_counting')
     gt_counting = tf.cast(tf.reduce_sum(y, reduction_indices=[1, 2, 3]), tf.float32)
@@ -81,12 +83,12 @@ if __name__ == '__main__':
                     validate_RMSE = np.sqrt(np.mean(MSE_))
 
                     # show one of the validate samples
-                    figure, (origin, density_gt, pred, front_ground) = plt.subplots(1, 4, figsize=(20, 4))
+                    figure, ((origin, density_gt), (pred, front_ground)) = plt.subplots(2, 2, figsize=(20, 4))
                     origin.imshow(image_validate[1])
                     origin.set_title('Origin Image')
 
-                    front_g, gt_validate_down_sampling_map, predict_den, gt_counts, pred_counts = sess.run(
-                        [front_end, gt_map, estimated_density_map, gt_counting, estimated_counting],
+                    front_g, gt_validate_down_sampling_map, predict_den, gt_counts, pred_counts, front_end_value, inception_value, conv1x1_value = sess.run(
+                        [front_end, gt_map, estimated_density_map, gt_counting, estimated_counting, tmp_front_end, tmp_inception_value, tmp_1x1_value],
                         feed_dict={x: image_validate[1:2], y: gt_validate[1:2]})
 
                     density_gt.imshow(np.squeeze(gt_validate_down_sampling_map), cmap=plt.cm.jet)
@@ -94,8 +96,9 @@ if __name__ == '__main__':
 
                     predict_den = np.squeeze(predict_den)
                     pred.imshow(predict_den, cmap=plt.cm.jet)
+                    pred.set_title('back_end')
                     front_ground.imshow(np.squeeze(front_g), cmap=plt.cm.jet)
-                    front_ground.set_title('vgg_output')
+                    front_ground.set_title('front_end')
 
                     plt.suptitle("one sample from the validate")
                     plt.show()
@@ -103,8 +106,9 @@ if __name__ == '__main__':
                     # show the validate MAE and MSE values on stdout
                     gt_counts = np.squeeze(gt_counts)
                     pred_counts = np.squeeze(pred_counts)
+
                     sys.stdout.write(
-                        'The gt counts of the above sample:{}, and the pred counts:{}\n'.format(gt_counts, pred_counts))
+                        'The gt counts of the above sample:{}, and the pred counts:{}, vgg:{}, inception_1:{}, conv1x1:{}\n'.format(gt_counts, pred_counts, front_end_value, inception_value, conv1x1_value))
                     sys.stdout.write(
                         'In step {}, epoch {}, with loss {}, MAE = {}, MSE = {}\n'.format(step, i + 1, validate_loss,
                                                                                           validate_MAE, validate_RMSE))

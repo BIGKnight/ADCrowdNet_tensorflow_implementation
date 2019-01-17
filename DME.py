@@ -33,15 +33,15 @@ def DME_inception(features, index,  output_nums):
 
 def DME_back_end(features):
     features_transpose = tf.transpose(features, [0, 3, 1, 2])
-    with slim.arg_scope([slim.conv2d], activation_fn=tf.nn.relu):
-        net = DME_inception(features_transpose, 1, 256)
-        net = slim.conv2d(net, 256, 1, 1, data_format='NCHW', scope='conv1x1_1')
-        net = DME_inception(net, 2, 128)
-        net = slim.conv2d(net, 128, 1, 1, data_format='NCHW', scope='conv1x1_2')
-        net = DME_inception(net, 3, 64)
-        net = slim.conv2d(net, 1, 1, 1, data_format='NCHW', scope='conv1x1_3')
-    output = tf.transpose(net, [0, 2, 3, 1])
-    return output
+    with slim.arg_scope([slim.conv2d], activation_fn=tf.nn.leaky_relu):
+        net_inception_1 = DME_inception(features_transpose, 1, 256)
+        net_conv_1x1_1 = slim.conv2d(net_inception_1, 256, 1, 1, data_format='NCHW', scope='conv1x1_1')
+        net_inception_2 = DME_inception(net_conv_1x1_1, 2, 128)
+        net_conv_1x1_2 = slim.conv2d(net_inception_2, 128, 1, 1, data_format='NCHW', scope='conv1x1_2')
+        net_inception_3 = DME_inception(net_conv_1x1_2, 3, 64)
+        net_conv_1x1_3 = slim.conv2d(net_inception_3, 1, 1, 1, data_format='NCHW', scope='conv1x1_3')
+    output = tf.transpose(net_conv_1x1_3, [0, 2, 3, 1])
+    return output, net_inception_1, net_conv_1x1_1
 
 
 def DME_model(features):
@@ -49,6 +49,11 @@ def DME_model(features):
     # front_end, init_vgg16_fn = DME_front_end(features)
     _, end_points = nets.vgg.vgg_16(features)
     front_end = end_points['vgg_16/conv4/conv4_3']
-    feature_map = DME_back_end(front_end)
+    feature_map, tmp_inception, tmp_1x1 = DME_back_end(front_end)
     # return output, init_vgg16_fn
-    return feature_map
+    front_g = slim.conv2d(front_end, 1, 1)
+    tmp_front_end = tf.reduce_sum(front_end, reduction_indices=[1, 2, 3])
+    tmp_inception_value = tf.reduce_sum(tmp_inception, reduction_indices=[1, 2, 3])
+    tmp_1x1_value = tf.reduce_sum(tmp_1x1, reduction_indices=[1, 2, 3])
+
+    return feature_map, front_g, tmp_front_end, tmp_inception_value, tmp_1x1_value

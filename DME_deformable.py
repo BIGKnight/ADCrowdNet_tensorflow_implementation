@@ -5,6 +5,7 @@ import tensorflow.contrib.slim.nets as nets
 # from deformable_conv2d_op.deformable_conv2d import deformable_conv2d_op
 import os.path as osp
 from tensorflow.python.framework import ops
+import math
 
 model_path = '/home/zzn/PycharmProjects/ADCrowdNet/vgg_pre-trained_variable_list/vgg_16.ckpt'
 
@@ -104,15 +105,23 @@ def _deformable_conv2d_back_prop(op, grad):
 def deformable_conv2d(features, kernel_size, output_nums, input_nums, stride, batch_size, image_height, image_weight, index):
     kernel_arg_nums = kernel_size[0] * kernel_size[1]
 
-    args = slim.conv2d(
-        features,
-        3 * kernel_arg_nums,
-        kernel_size,
-        stride,
-        padding='SAME',
-        data_format='NCHW',
-        weights_initializer=tf.zeros_initializer,
-        scope='offset_mask_parameters_part_' + str(index))
+    deformable_kernel_weights = tf.get_variable(
+        name="deformable_kernel_weights_" + str(output_nums) + "_part_" + str(index),
+        shape=[3, 3, input_nums, 3 * kernel_arg_nums],
+        dtype=tf.float32,
+        initializer=tf.zeros_initializer)
+
+    args = tf.nn.conv2d(features, deformable_kernel_weights, [1, 1, stride[0], stride[1]], padding='SAME', data_format='NCHW')
+
+    # args = slim.conv2d(
+    #     features,
+    #     3 * kernel_arg_nums,
+    #     kernel_size,
+    #     stride,
+    #     padding='SAME',
+    #     data_format='NCHW',
+    #     weights_initializer=tf.zeros_initializer,
+    #     scope='offset_mask_parameters_part_' + str(index))
 
     offset = tf.slice(
         args,
@@ -130,12 +139,16 @@ def deformable_conv2d(features, kernel_size, output_nums, input_nums, stride, ba
 
     mask_sigmoid = tf.sigmoid(mask_origin, name='mask_sigmoid_part_' + str(index))
 
+    # must set xavier initializer manually, adopt the uniform version
+    min = - math.sqrt(6. / (kernel_size[0] * kernel_size[1] * input_nums))
+    max = math.sqrt(6. / (kernel_size[0] * kernel_size[1] * input_nums))
+    axvier = tf.random_uniform_initializer(minval=min, maxval=max)
     # only use the version of num_groups = 1
     weight = tf.get_variable(
         # name='deformable_kernel_inception_' + str(index) + '_' + str(kernel_size[0]) + 'x' + str(kernel_size[1]),
         name='weight_part_' + str(index),
         shape=[output_nums, input_nums, kernel_size[0], kernel_size[1]],
-        initializer=tf.random_uniform_initializer(maxval=1)
+        initializer=axvier
     )
 
     # print(features, kernel_size, output_nums, input_nums, stride, batch_size, image_height, image_weight, index)
@@ -175,13 +188,13 @@ def DME_inception(features, index, output_nums, input_nums, batch_size, image_he
 def DME_back_end(features, input_nums, batch_size, image_height, image_weight):
     features_transpose = tf.transpose(features, [0, 3, 1, 2])
     net_inception_1 = DME_inception(features_transpose, 1, 256, input_nums, batch_size, image_height=image_height, image_weight=image_weight)
-    net_inception_1 = slim.conv2d(net_inception_1, 256, 1, 1, data_format='NCHW')
-    net_inception_2 = DME_inception(net_inception_1, 2, 128, 256, batch_size, image_height=image_height, image_weight=image_weight)
-    net_inception_2 = slim.conv2d(net_inception_2, 128, 1, 1, data_format='NCHW')
-    net_inception_3 = DME_inception(net_inception_2, 3, 64, 128, batch_size, image_height=image_height, image_weight=image_weight)
-    net_inception_4 = slim.conv2d(net_inception_3, 1, 1, 1, data_format='NCHW')
-    output = tf.transpose(net_inception_4, [0, 2, 3, 1])
-    return output
+    net_conv_1x1_1 = slim.conv2d(net_inception_1, 256, 1, 1, data_format='NCHW')
+    net_inception_2 = DME_inception(net_conv_1x1_1, 2, 128, 256, batch_size, image_height=image_height, image_weight=image_weight)
+    net_conv_1x1_2 = slim.conv2d(net_inception_2, 128, 1, 1, data_format='NCHW')
+    net_inception_3 = DME_inception(net_conv_1x1_2, 3, 64, 128, batch_size, image_height=image_height, image_weight=image_weight)
+    net_conv_1x1_3 = slim.conv2d(net_inception_3, 1, 1, 1, data_format='NCHW')
+    output = tf.transpose(net_conv_1x1_3, [0, 2, 3, 1])
+    return output, net_inception_1, net_conv_1x1_1
 
 
 def DME_model(features, batch_size, image_height, image_weight):
@@ -190,8 +203,12 @@ def DME_model(features, batch_size, image_height, image_weight):
     front_end = end_points['vgg_16/conv4/conv4_3']
     image_height = int(image_height / 8)
     image_weight = int(image_weight / 8)
-    feature_map = DME_back_end(front_end, 512, batch_size, image_height=image_height, image_weight=image_weight)
+    feature_map, tmp_inception, tmp_1x1 = DME_back_end(front_end, 512, batch_size, image_height=image_height, image_weight=image_weight)
 
     front_g = slim.conv2d(front_end, 1, 1)
+    tmp_front_end = tf.reduce_sum(front_end, reduction_indices=[1, 2, 3])
+    tmp_inception_value = tf.reduce_sum(tmp_inception, reduction_indices=[1, 2, 3])
+    tmp_1x1_value = tf.reduce_sum(tmp_1x1, reduction_indices=[1, 2, 3])
 
-    return feature_map, front_g
+
+    return feature_map, front_g, tmp_front_end, tmp_inception_value, tmp_1x1_value

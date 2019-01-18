@@ -22,24 +22,33 @@ __device__ DType dmcn_im2col_bilinear(
     const int width,
     DType h,
     DType w){
-        int h_low = floor(h);
-        int w_low = floor(w);
-        int h_high = h_low + 1;
-        int w_high = w_low + 1;
-        DType lh = h - h_low;
-        DType lw = w - w_low;
-        DType hh = 1 - lh, hw = 1 - lw;
-        DType v1 = 0;
-        if (h_low >= 0 && w_low >= 0) v1 = bottom_data[h_low * data_width + w_low];
-        DType v2 = 0;
-        if (h_low >=0 && w_high <= width - 1) v2 = bottom_data[h_low * data_width + w_high];
-        DType v3 = 0;
-        if (h_high <= height - 1 && w_low >= 0) v3 = bottom_data[h_high * data_width + w_low];
-        DType v4 = 0;
-        if (h_high <= height - 1 && w_high <= width - 1) v4 = bottom_data[h_high * data_width + w_high];
-        DType w1 = hh * hw, w2 = hh * lw, w3 = lh * hw, w4 = lh * lw;
-        DType val = (w1 * v1 + w2 * v2 + w3 * v3 + w4 * v4);
-        return val;
+
+  int h_low = floor(h);
+  int w_low = floor(w);
+  int h_high = h_low + 1;
+  int w_high = w_low + 1;
+
+  DType lh = h - h_low;
+  DType lw = w - w_low;
+  DType hh = 1 - lh, hw = 1 - lw;
+
+  DType v1 = 0;
+  if (h_low >= 0 && w_low >= 0)
+    v1 = bottom_data[h_low * data_width + w_low];
+  DType v2 = 0;
+  if (h_low >=0 && w_high <= width - 1)
+    v2 = bottom_data[h_low * data_width + w_high];
+  DType v3 = 0;
+  if (h_high <= height - 1 && w_low >= 0)
+    v3 = bottom_data[h_high * data_width + w_low];
+  DType v4 = 0;
+  if (h_high <= height - 1 && w_high <= width - 1)
+    v4 = bottom_data[h_high * data_width + w_high];
+
+  DType w1 = hh * hw, w2 = hh * lw, w3 = lh * hw, w4 = lh * lw;
+
+  DType val = (w1 * v1 + w2 * v2 + w3 * v3 + w4 * v4);
+  return val;
 }
 
 template<typename DType>
@@ -48,19 +57,26 @@ __device__ DType dmcn_get_gradient_weight(
     DType argmax_w, // offset w
     const int h,  const int w, // coordinate
     const int height,  const int width){
+
   if (argmax_h <= -1 || argmax_h >= height || argmax_w <= -1 || argmax_w >= width) {
     //empty
     return 0;
   }
+
   int argmax_h_low = floor(argmax_h);
   int argmax_w_low = floor(argmax_w);
   int argmax_h_high = argmax_h_low + 1;
   int argmax_w_high = argmax_w_low + 1;
+
   DType weight = 0;
-  if (h == argmax_h_low && w == argmax_w_low) weight = (h + 1 - argmax_h) * (w + 1 - argmax_w); //1 - (argmax - h)
-  if (h == argmax_h_low && w == argmax_w_high) weight = (h + 1 - argmax_h) * (argmax_w + 1 - w);
-  if (h == argmax_h_high && w == argmax_w_low) weight = (argmax_h + 1 - h) * (w + 1 - argmax_w);
-  if (h == argmax_h_high && w == argmax_w_high) weight = (argmax_h + 1 - h) * (argmax_w + 1 - w);
+  if (h == argmax_h_low && w == argmax_w_low)
+      weight = (h + 1 - argmax_h) * (w + 1 - argmax_w);
+  if (h == argmax_h_low && w == argmax_w_high)
+      weight = (h + 1 - argmax_h) * (argmax_w + 1 - w);
+  if (h == argmax_h_high && w == argmax_w_low)
+      weight = (argmax_h + 1 - h) * (w + 1 - argmax_w);
+  if (h == argmax_h_high && w == argmax_w_high)
+      weight = (argmax_h + 1 - h) * (argmax_w + 1 - w);
   return weight;
 }
 
@@ -88,31 +104,22 @@ __device__ DType dmcn_get_coordinate_weight(
   
   DType weight = 0;
 
-  if (bp_dir == 0) { //先ｘ方向 , 这个负号是把ｙ放向上的(argmax_h_high - argmax_h)替换成了1 - (argmax_h - argmax_h_low)
+  if (bp_dir == 0) {
     if (argmax_h_low >= 0 && argmax_w_low >= 0)
         weight += -1 * (argmax_w_low + 1 - argmax_w) * im_data[argmax_h_low * data_width + argmax_w_low];
-
     if (argmax_h_low >= 0 && argmax_w_high <= width - 1)
         weight += -1 * (argmax_w - argmax_w_low) * im_data[argmax_h_low * data_width + argmax_w_high];
-
     if (argmax_h_high <= height - 1 && argmax_w_low >= 0)
         weight += (argmax_w_low + 1 - argmax_w) * im_data[argmax_h_high * data_width + argmax_w_low];
-
     if (argmax_h_high <= height - 1 && argmax_w_high <= width - 1)
         weight += (argmax_w - argmax_w_low) * im_data[argmax_h_high * data_width + argmax_w_high];
-
-  }
-
-  else if (bp_dir == 1) { //先ｙ放向
+  } else if (bp_dir == 1) {
     if (argmax_h_low >= 0 && argmax_w_low >= 0)
         weight += -1 * (argmax_h_low + 1 - argmax_h) * im_data[argmax_h_low * data_width + argmax_w_low];
-
     if (argmax_h_low >= 0 && argmax_w_high <= width - 1)
         weight += (argmax_h_low + 1 - argmax_h) * im_data[argmax_h_low * data_width + argmax_w_high];
-
     if (argmax_h_high <= height - 1 && argmax_w_low >= 0)
         weight += -1 * (argmax_h - argmax_h_low) * im_data[argmax_h_high * data_width + argmax_w_low];
-
     if (argmax_h_high <= height - 1 && argmax_w_high <= width - 1)
         weight += (argmax_h - argmax_h_low) * im_data[argmax_h_high * data_width + argmax_w_high];
   }
@@ -169,60 +176,54 @@ __global__ void DeformableConv2DIm2ColKernel(
     const int batch_size, const int num_channels, const int deformable_group, //这里的batch_size代表的是im2col_step_, 一般就设为1了
     const int height_col, const int width_col, 
     DType* data_col){
-    CUDA_1D_KERNEL_LOOP(index, n){
-    // n = K * N / k.Size(), 这里应该是一个线程的运算内容, 所以所谓的卷积就是并行计算kernel喽, 所以一个filter得出一个通道的输出,需要n个kernel操作
+
+    CUDA_1D_KERNEL_LOOP(index, n) {
     // index index of output matrix
     const int w_col = index % width_col;
     const int h_col = (index / width_col) % height_col;
-
-    const int b_col = (index / width_col / height_col) % batch_size; // 为什么这个地方有batch的信息. 我感觉b_col代表的是在第几个通道
-
-    const int c_im = (index / width_col / height_col) / batch_size; // batch_size 可以暂时看做1
-
+    const int b_col = (index / width_col / height_col) % batch_size;
+    const int c_im = (index / width_col / height_col) / batch_size;
     const int c_col = c_im * kernel_h * kernel_w;
 
     // compute deformable group index
-    const int deformable_group_index = c_im / channel_per_deformable_group; // 0
+    const int deformable_group_index = c_im / channel_per_deformable_group;
 
-    const int h_in = h_col * stride_h - pad_h; // 这是在计算h_col在输入图上感受野的左上角的位置h_in
-    const int w_in = w_col * stride_w - pad_w; // 这是在计算w_col在输入图上感受野的左上角的位置w_in
+    const int h_in = h_col * stride_h - pad_h;
+    const int w_in = w_col * stride_w - pad_w;
 
-
-    // 这里在计算指针的位置
     DType* data_col_ptr = data_col + ((c_col * batch_size + b_col) * height_col + h_col) * width_col + w_col;
+    //const DType* data_im_ptr = data_im + ((b_col * num_channels + c_im) * height + h_in) * width + w_in;
+    const DType* data_im_ptr = data_im + (b_col * num_channels + c_im) * height * width;
+    const DType* data_offset_ptr = data_offset + (b_col * deformable_group + deformable_group_index) * 2 * kernel_h * kernel_w * height_col * width_col;
 
-    const DType* data_im_ptr = data_im + (b_col * num_channels + c_im) * height * width; // 找到这张图当前kernel所在的那个输入层的初始像素点的位置, 如果batch_size = 1, b_col = 0 那么就等于data_im + (ci_m * height * width)
-    const DType* data_offset_ptr = data_offset + (b_col * deformable_group + deformable_group_index) * 2 * kernel_h * kernel_w * height_col * width_col; // 找到
     const DType* data_mask_ptr = data_mask + (b_col *  deformable_group + deformable_group_index) * kernel_h * kernel_w * height_col * width_col;
-        for (int i = 0; i < kernel_h; ++i) { // 这里貌似kernel大小就是[3, 3]不考虑输入通道的数目, 那确实印证了之前的说法, CUDA_KERNEL_LOOP其实代表的就是一个kernel操作
-            for (int j = 0; j < kernel_w; ++j) {
-                const int data_offset_h_ptr = ((2 * (i * kernel_w + j)) * height_col + h_col) * width_col + w_col; //2 * (i * kernel_w + j)代表的是找到对应的通道, 后半部分在找坐标点
-                // 其实这个可以写作 2 * (i * kernel_w + j) * height_col * width_col + h_col * width_col + w_col
-                const int data_offset_w_ptr = ((2 * (i * kernel_w + j) + 1) * height_col + h_col) * width_col + w_col;
-                const int data_mask_hw_ptr = ((i * kernel_w + j) * height_col + h_col) * width_col + w_col;
-                // 取出偏移和mask
-                const DType offset_h = data_offset_ptr[data_offset_h_ptr];
-                const DType offset_w = data_offset_ptr[data_offset_w_ptr];
-                const DType mask = data_mask_ptr[data_mask_hw_ptr];
 
-                DType val = static_cast<DType>(0);
-                const DType h_im = h_in + i * dilation_h + offset_h; // 计算加了偏移后的在输入图上的坐标
-                const DType w_im = w_in + j * dilation_w + offset_w;
-                //if (h_im >= 0 && w_im >= 0 && h_im < height && w_im < width) {
-                if (h_im > -1 && w_im > -1 && h_im < height && w_im < width) {
-                  //const DType map_h = i * dilation_h + offset_h;
-                  //const DType map_w = j * dilation_w + offset_w;
-                  //const int cur_height = height - h_in;
-                  //const int cur_width = width - w_in;
-                  //val = dmcn_im2col_bilinear(data_im_ptr, width, cur_height, cur_width, map_h, map_w);
-                  val = dmcn_im2col_bilinear(data_im_ptr, width, height, width, h_im, w_im); // 计算插值
-                }
-                *data_col_ptr = val * mask; // 值得注意的是,此时只是将偏移后的值算出来了, 而且注意这个地方data_col_ptr这个指针是直接往下走了N,而这个循环实际上只走w * h步, 那么这个循环结束的时候，只往Ｋ的那个方向填了kernel.Size()个值
-                data_col_ptr += batch_size * height_col * width_col;
-                //data_col_ptr += height_col * width_col;
-            }
-        }    
+    for (int i = 0; i < kernel_h; ++i) {
+      for (int j = 0; j < kernel_w; ++j) {
+        const int data_offset_h_ptr = ((2 * (i * kernel_w + j)) * height_col + h_col) * width_col + w_col;
+        const int data_offset_w_ptr = ((2 * (i * kernel_w + j) + 1) * height_col + h_col) * width_col + w_col;
+        const int data_mask_hw_ptr = ((i * kernel_w + j) * height_col + h_col) * width_col + w_col;
+        const DType offset_h = data_offset_ptr[data_offset_h_ptr];
+        const DType offset_w = data_offset_ptr[data_offset_w_ptr];
+        const DType mask = data_mask_ptr[data_mask_hw_ptr];
+        DType val = static_cast<DType>(0);
+        const DType h_im = h_in + i * dilation_h + offset_h;
+        const DType w_im = w_in + j * dilation_w + offset_w;
+        //if (h_im >= 0 && w_im >= 0 && h_im < height && w_im < width) {
+        if (h_im > -1 && w_im > -1 && h_im < height && w_im < width) {
+          //const DType map_h = i * dilation_h + offset_h;
+          //const DType map_w = j * dilation_w + offset_w;
+          //const int cur_height = height - h_in;
+          //const int cur_width = width - w_in;
+          //val = dmcn_im2col_bilinear(data_im_ptr, width, cur_height, cur_width, map_h, map_w);
+          val = dmcn_im2col_bilinear(data_im_ptr, width, height, width, h_im, w_im);
+        }
+        *data_col_ptr = val * mask;
+        data_col_ptr += batch_size * height_col * width_col;
+        //data_col_ptr += height_col * width_col;
+      }
     }
+  }
 }
 
 template <typename DType>

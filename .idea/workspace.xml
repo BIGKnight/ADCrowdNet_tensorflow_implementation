@@ -2,13 +2,14 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="abd130d7-6acc-4d30-bfab-1cb3a933ee65" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.ipynb_checkpoints/main-checkpoint.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/.ipynb_checkpoints/main-checkpoint.ipynb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/DME.py" beforeDir="false" afterPath="$PROJECT_DIR$/DME.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/DME_deformable.py" beforeDir="false" afterPath="$PROJECT_DIR$/DME_deformable.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/deformable_conv2d_op/test_deformable.py" beforeDir="false" afterPath="$PROJECT_DIR$/deformable_conv2d_op/test_deformable.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/deformable_conv2d_op/deformable_conv2d.cc" beforeDir="false" afterPath="$PROJECT_DIR$/deformable_conv2d_op/deformable_conv2d.cc" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/deformable_conv2d_op/deformable_conv2d.cu.cc" beforeDir="false" afterPath="$PROJECT_DIR$/deformable_conv2d_op/deformable_conv2d.cu.cc" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/deformable_conv2d_op/deformable_conv2d.cu.o" beforeDir="false" afterPath="$PROJECT_DIR$/deformable_conv2d_op/deformable_conv2d.cu.o" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/deformable_conv2d_op/deformable_conv2d.so" beforeDir="false" afterPath="$PROJECT_DIR$/deformable_conv2d_op/deformable_conv2d.so" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/main.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/main.ipynb" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/predict.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/predict.ipynb" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -18,9 +19,9 @@
   </component>
   <component name="CoverageDataManager">
     <SUITE FILE_PATH="coverage/ADCrowdNet$test_deformable.coverage" NAME="test_deformable Coverage Results" MODIFIED="1547723307747" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/deformable_conv2d_op" />
-    <SUITE FILE_PATH="coverage/ADCrowdNet$DME_deformable.coverage" NAME="DME_deformable Coverage Results" MODIFIED="1547716444995" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/ADCrowdNet$DME_deformable.coverage" NAME="DME_deformable Coverage Results" MODIFIED="1547738219064" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/ADCrowdNet$deformable_conv2d.coverage" NAME="deformable_conv2d Coverage Results" MODIFIED="1547534913865" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/deformable_conv2d_op" />
-    <SUITE FILE_PATH="coverage/ADCrowdNet$main.coverage" NAME="main Coverage Results" MODIFIED="1547732625565" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/ADCrowdNet$main.coverage" NAME="main Coverage Results" MODIFIED="1547739339738" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
   </component>
   <component name="FUSProjectUsageTrigger">
     <session id="-250387311">
@@ -34,36 +35,36 @@
       </usages-collector>
       <usages-collector id="statistics.file.extensions.open">
         <counts>
-          <entry key="cc" value="4" />
+          <entry key="cc" value="5" />
           <entry key="h" value="4" />
-          <entry key="ipynb" value="17" />
-          <entry key="py" value="21" />
+          <entry key="ipynb" value="18" />
+          <entry key="py" value="22" />
           <entry key="sh" value="5" />
         </counts>
       </usages-collector>
       <usages-collector id="statistics.file.types.open">
         <counts>
           <entry key="Bash" value="2" />
-          <entry key="C++" value="8" />
-          <entry key="IPNB" value="17" />
+          <entry key="C++" value="9" />
+          <entry key="IPNB" value="18" />
           <entry key="PLAIN_TEXT" value="3" />
-          <entry key="Python" value="21" />
+          <entry key="Python" value="22" />
         </counts>
       </usages-collector>
       <usages-collector id="statistics.file.extensions.edit">
         <counts>
-          <entry key="cc" value="3051" />
+          <entry key="cc" value="3084" />
           <entry key="dummy" value="11" />
           <entry key="h" value="1336" />
-          <entry key="py" value="5573" />
+          <entry key="py" value="5853" />
           <entry key="sh" value="108" />
         </counts>
       </usages-collector>
       <usages-collector id="statistics.file.types.edit">
         <counts>
-          <entry key="C++" value="4387" />
+          <entry key="C++" value="4420" />
           <entry key="PLAIN_TEXT" value="119" />
-          <entry key="Python" value="5573" />
+          <entry key="Python" value="5853" />
         </counts>
       </usages-collector>
     </session>
@@ -73,8 +74,8 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/DME_deformable.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="270">
-              <caret line="93" column="19" selection-start-line="93" selection-start-column="19" selection-end-line="93" selection-end-column="19" />
+            <state relative-caret-position="-1680">
+              <caret line="71" column="79" selection-start-line="71" selection-start-column="79" selection-end-line="71" selection-end-column="79" />
               <folding>
                 <element signature="e#1#24#0" expanded="true" />
               </folding>
@@ -82,39 +83,14 @@
           </provider>
         </entry>
       </file>
-      <file pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/DME.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="223">
-              <caret line="28" column="93" lean-forward="true" selection-start-line="28" selection-start-column="93" selection-end-line="28" selection-end-column="93" />
-              <folding>
-                <element signature="e#0#23#0" expanded="true" />
-                <marker date="1547731000422" expanded="true" signature="243:250" ph="..." />
-                <marker date="1547731000422" expanded="true" signature="918:1376" ph="..." />
-                <marker date="1547731000422" expanded="true" signature="1465:1470" ph="..." />
-                <marker date="1547731000422" expanded="true" signature="2246:2247" ph="..." />
-              </folding>
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file pinned="false" current-in-tab="false">
+      <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/main.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="330">
-              <caret line="25" column="106" lean-forward="true" selection-start-line="25" selection-start-column="106" selection-end-line="25" selection-end-column="106" />
+            <state relative-caret-position="405">
+              <caret line="27" column="34" selection-start-line="27" selection-start-column="34" selection-end-line="27" selection-end-column="34" />
               <folding>
                 <element signature="e#0#23#0" expanded="true" />
               </folding>
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file pinned="false" current-in-tab="true">
-        <entry file="file://$PROJECT_DIR$/deformable_conv2d_op/deformable_conv2d.cc">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="166">
-              <caret line="48" column="53" lean-forward="true" selection-start-line="48" selection-start-column="53" selection-end-line="48" selection-end-column="53" />
             </state>
           </provider>
         </entry>
@@ -130,7 +106,6 @@
   </component>
   <component name="FindInProjectRecents">
     <findStrings>
-      <find>checkCudaErrors</find>
       <find>deformable_conv2d_op</find>
       <find>_deformable_conv2d_back_prop</find>
       <find>deformable_conv2d_back_prop</find>
@@ -160,6 +135,7 @@
       <find>vgg_num_value</find>
       <find>xavier_initializer_conv2d</find>
       <find>out_grad_3d_ptr</find>
+      <find>col_buffer_3d_ptr</find>
     </findStrings>
   </component>
   <component name="Git.Settings">
@@ -172,15 +148,15 @@
         <option value="$PROJECT_DIR$/deformable_conv2d_op/g++_compile.sh" />
         <option value="$PROJECT_DIR$/deformable_conv2d_op/deformable_conv2d.py" />
         <option value="$PROJECT_DIR$/deformable_conv2d_op/deformable_conv2d_utils.h" />
-        <option value="$PROJECT_DIR$/deformable_conv2d_op/deformable_conv2d.cu.cc" />
         <option value="$PROJECT_DIR$/deformable_conv2d_op/make.sh" />
         <option value="$PROJECT_DIR$/deformable_conv2d_op/deformable_conv2d.h" />
-        <option value="$PROJECT_DIR$/deformable_conv2d_op/deformable_conv2d.cc" />
         <option value="$PROJECT_DIR$/deformable_conv2d_op/test_deformable.py" />
-        <option value="$PROJECT_DIR$/DME_deformable.py" />
         <option value="$PROJECT_DIR$/DME.py" />
-        <option value="$PROJECT_DIR$/main.py" />
         <option value="$PROJECT_DIR$/main.ipynb" />
+        <option value="$PROJECT_DIR$/deformable_conv2d_op/deformable_conv2d.cu.cc" />
+        <option value="$PROJECT_DIR$/deformable_conv2d_op/deformable_conv2d.cc" />
+        <option value="$PROJECT_DIR$/DME_deformable.py" />
+        <option value="$PROJECT_DIR$/main.py" />
       </list>
     </option>
   </component>
@@ -208,6 +184,11 @@
             <path>
               <item name="ADCrowdNet" type="b2602c69:ProjectViewProjectNode" />
               <item name="ADCrowdNet" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="ADCrowdNet" type="b2602c69:ProjectViewProjectNode" />
+              <item name="ADCrowdNet" type="462c0819:PsiDirectoryNode" />
+              <item name="checkpoint_dir" type="462c0819:PsiDirectoryNode" />
             </path>
             <path>
               <item name="ADCrowdNet" type="b2602c69:ProjectViewProjectNode" />
@@ -336,8 +317,8 @@
     <recent_temporary>
       <list>
         <item itemvalue="Python.main" />
-        <item itemvalue="Python.test_deformable" />
         <item itemvalue="Python.DME_deformable" />
+        <item itemvalue="Python.test_deformable" />
         <item itemvalue="Python.deformable_conv2d" />
       </list>
     </recent_temporary>
@@ -356,15 +337,15 @@
     <servers />
   </component>
   <component name="ToolWindowManager">
-    <frame x="1984" y="-11" width="1857" height="1092" extended-state="6" />
+    <frame x="1985" y="-4" width="1855" height="1084" extended-state="6" />
     <editor active="true" />
     <layout>
-      <window_info active="true" content_ui="combo" id="Project" order="0" visible="true" weight="0.080154784" />
+      <window_info content_ui="combo" id="Project" order="0" visible="true" weight="0.1708126" />
       <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
       <window_info id="Favorites" order="2" side_tool="true" />
       <window_info anchor="bottom" id="Message" order="0" />
       <window_info anchor="bottom" id="Find" order="1" weight="0.3294979" />
-      <window_info anchor="bottom" id="Run" order="2" visible="true" weight="0.374477" />
+      <window_info active="true" anchor="bottom" id="Run" order="2" visible="true" weight="0.23012552" />
       <window_info anchor="bottom" id="Debug" order="3" weight="0.4" />
       <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
       <window_info anchor="bottom" id="Inspection" order="5" weight="0.4" />
@@ -373,12 +354,12 @@
       <window_info anchor="bottom" id="Version Control" order="8" />
       <window_info anchor="bottom" id="Database Changes" order="9" show_stripe_button="false" />
       <window_info anchor="bottom" id="Event Log" order="10" side_tool="true" />
-      <window_info anchor="bottom" id="Terminal" order="11" weight="0.2625523" />
+      <window_info anchor="bottom" id="Terminal" order="11" weight="0.043933053" />
       <window_info anchor="bottom" id="Python Console" order="12" />
       <window_info anchor="right" id="Commander" internal_type="SLIDING" order="0" type="SLIDING" weight="0.4" />
       <window_info anchor="right" id="Ant Build" order="1" weight="0.25" />
       <window_info anchor="right" content_ui="combo" id="Hierarchy" order="2" weight="0.25" />
-      <window_info anchor="right" id="SciView" order="3" weight="0.28524047" />
+      <window_info anchor="right" id="SciView" order="3" weight="0.19789939" />
       <window_info anchor="right" id="Database" order="4" />
     </layout>
   </component>
@@ -441,13 +422,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/deformable_conv2d_op/deformable_conv2d.cu.cc">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-5">
-          <caret line="457" selection-start-line="457" selection-end-line="457" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$USER_HOME$/SANet_implementation-master/lib/python3.5/site-packages/numpy/core/_methods.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="153">
@@ -493,13 +467,17 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/main.py">
+    <entry file="file://$PROJECT_DIR$/main.ipynb">
+      <provider selected="true" editor-type-id="ipnb-editor">
+        <state>
+          <selected id="4" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/deformable_conv2d_op/deformable_conv2d.cu.cc">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="330">
-          <caret line="25" column="106" lean-forward="true" selection-start-line="25" selection-start-column="106" selection-end-line="25" selection-end-column="106" />
-          <folding>
-            <element signature="e#0#23#0" expanded="true" />
-          </folding>
+        <state relative-caret-position="-3290">
+          <caret line="181" column="40" selection-start-line="181" selection-start-column="40" selection-end-line="181" selection-end-column="40" />
         </state>
       </provider>
     </entry>
@@ -517,27 +495,30 @@
         </state>
       </provider>
     </entry>
+    <entry file="file://$PROJECT_DIR$/deformable_conv2d_op/deformable_conv2d.cc">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="4386">
+          <caret line="556" selection-start-line="556" selection-end-line="556" />
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/DME_deformable.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="270">
-          <caret line="93" column="19" selection-start-line="93" selection-start-column="19" selection-end-line="93" selection-end-column="19" />
+        <state relative-caret-position="-1680">
+          <caret line="71" column="79" selection-start-line="71" selection-start-column="79" selection-end-line="71" selection-end-column="79" />
           <folding>
             <element signature="e#1#24#0" expanded="true" />
           </folding>
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/main.ipynb">
-      <provider selected="true" editor-type-id="ipnb-editor">
-        <state>
-          <selected id="4" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/deformable_conv2d_op/deformable_conv2d.cc">
+    <entry file="file://$PROJECT_DIR$/main.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="166">
-          <caret line="48" column="53" lean-forward="true" selection-start-line="48" selection-start-column="53" selection-end-line="48" selection-end-column="53" />
+        <state relative-caret-position="405">
+          <caret line="27" column="34" selection-start-line="27" selection-start-column="34" selection-end-line="27" selection-end-column="34" />
+          <folding>
+            <element signature="e#0#23#0" expanded="true" />
+          </folding>
         </state>
       </provider>
     </entry>

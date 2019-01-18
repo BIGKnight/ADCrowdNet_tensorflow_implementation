@@ -101,7 +101,7 @@ if __name__ == '__main__':
                     front_ground.set_title('front_end')
 
                     plt.suptitle("one sample from the validate")
-                    plt.show()
+                    # plt.show()
 
                     # show the validate MAE and MSE values on stdout
                     gt_counts = np.squeeze(gt_counts)

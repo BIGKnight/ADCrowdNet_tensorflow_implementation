@@ -446,31 +446,32 @@ class DeformableConv2DBackPropOp : public OpKernel{
         int32_t N = im2col_step_ * conv_out_spatial_dim_;
         int32_t K = conv_out_channels_ / group_;
 
-        const T* x_ptr = x.template flat<T>().data();
-        const T* offset_ptr = offset.template flat<T>().data();
-        const T* mask_ptr = mask.template flat<T>().data();
-        const T* weight_3d_ptr = filter.template flat<T>().data();
+        const auto x_ptr = x.template flat<T>().data();
+        const auto offset_ptr = offset.template flat<T>().data();
+        const auto mask_ptr = mask.template flat<T>().data();
+        const auto weight_3d_ptr = filter.template flat<T>().data();
         TensorShape weight_3d_shape = TensorShape({group_, K, M});
 
         Tensor out_grad_4d;
         TensorShape out_grad_4d_shape = TensorShape({num_ / im2col_step_, im2col_step_, conv_out_channels_, conv_out_spatial_dim_});
         OP_REQUIRES(context, out_grad_4d.CopyFrom(out_grad, out_grad_4d_shape), errors::InvalidArgument("shape doesn't match"));
-        T* out_grad_4d_ptr = out_grad_4d.template flat<T>().data();
-        SwapAxis<Device, T>()(d, out_grad_4d_ptr, ToVector(out_grad_4d_shape), 1, 2);// so the shape bacame:{num_ / im2col_step_, conv_out_channels_, im2col_step_, conv_out_spatial_dim_}
+        auto out_grad_4d_ptr = out_grad_4d.template flat<T>().data();
+//        SwapAxis<Device, T>()(d, out_grad_4d_ptr, ToVector(out_grad_4d_shape), 1, 2);// so the shape bacame:{num_ / im2col_step_, conv_out_channels_, im2col_step_, conv_out_spatial_dim_}
         out_grad_4d_shape = TensorShape({num_ / im2col_step_, group_, K, N});
 
         Tensor col_buffer;
         OP_REQUIRES_OK(context, context->allocate_temp(DataTypeToEnum<T>::value, col_buffer_shape, &col_buffer));
-        T* col_buffer_3d_ptr = col_buffer.template flat<T>().data();
+        auto col_buffer_3d_ptr = col_buffer.template flat<T>().data();
         TensorShape col_buffer_3d_shape = TensorShape({group_, M, N});
         //****
-        Tensor* dweight_3d = nullptr;
+
         /**
         * 注意这个地方的shape不能和原代码一样是{group_, K, M}, 因为TensorFlow的输出的shape就是在这个地方allocate_output的时候得到的输出,
         * 而且反正直接都是对flat后的向量在操作,直接设置为{output_channels, input_channels, h, w},也就是filter_shape就好了,大小是一样的,
         *
         **/
 //        TensorShape dweight_3d_shape = TensorShape({group_, K, M});
+        Tensor* dweight_3d = nullptr;
         OP_REQUIRES_OK(context, context->allocate_output(1, filter_shape, &dweight_3d));
         T* dweight_3d_ptr = dweight_3d->template flat<T>().data();
         
@@ -554,11 +555,10 @@ class DeformableConv2DBackPropOp : public OpKernel{
                 params_.deformable_groups,
                 col_buffer_3d_ptr);
 
-            //OpKernelContext* context, const TensorShape& in_x_shape, const TensorShape& in_y_shape, const Scalar* in_x_ptr,
-            //  const Scalar* in_y_ptr, bool adj_x, bool adj_y, Scalar* out
             if (0 == n)
                 LaunchBatchMatMul<Device, T>::launch(
-                    context, out_grad_3d_shape, 
+                    context,
+                    out_grad_3d_shape,
                     col_buffer_3d_shape,
                     out_grad_3d_ptr, 
                     col_buffer_3d_ptr, 

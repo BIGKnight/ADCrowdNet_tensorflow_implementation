@@ -81,7 +81,7 @@ def _deformable_conv2d_back_prop(op, grad):
         padding=pads,
         data_format=data_format,
         dilations=dilations)
-    return [data_grad, filter_grad, offset_grad * 0.1, mask_grad * 0.1]# List of 4 Tensor, since we have 4 input
+    return [data_grad, filter_grad, offset_grad, mask_grad]# List of 4 Tensor, since we have 4 input
 
 
 #
@@ -139,6 +139,8 @@ def deformable_conv2d(features, kernel_size, output_nums, input_nums, stride, ba
 
     mask_sigmoid = tf.sigmoid(mask_origin, name='mask_sigmoid_part_' + str(index))
 
+    # mask_sigmoid = tf.constant([1. for i in range(batch_size * kernel_arg_nums * image_height * image_weight)], dtype=tf.float32, shape=[batch_size, kernel_arg_nums, image_height, image_weight])
+
     # must set xavier initializer manually, adopt the uniform version
     min = - math.sqrt(6. / (kernel_size[0] * kernel_size[1] * input_nums))
     max = math.sqrt(6. / (kernel_size[0] * kernel_size[1] * input_nums))
@@ -173,13 +175,19 @@ def deformable_conv2d(features, kernel_size, output_nums, input_nums, stride, ba
 def DME_inception(features, index, output_nums, input_nums, batch_size, image_height, image_weight):
     with tf.variable_scope(name_or_scope='deformable_inception_' + str(index)):
         part_1 = deformable_conv2d(features, [3, 3], output_nums, input_nums, [1, 1], batch_size, image_height=image_height, image_weight=image_weight, index=1)
-        part_1_relu = tf.nn.relu(part_1, name='part_1_relu')
+        # part_1_bias_weights = tf.get_variable(name='part_1_bias_weights', shape=[output_nums], dtype=tf.float32, initializer=tf.zeros_initializer)
+        # part_1_bias = tf.nn.bias_add(part_1, part_1_bias_weights, data_format='NCHW', name='part_1_bias')
+        part_1_relu = tf.nn.leaky_relu(part_1, name='part_1_leaky_relu')
 
         part_2 = deformable_conv2d(features, [5, 5], output_nums, input_nums, [1, 1], batch_size, image_height=image_height, image_weight=image_weight, index=2)
-        part_2_relu = tf.nn.relu(part_2, name='part_2_relu')
+        # part_2_bias_weights = tf.get_variable(name='part_2_bias_weights', shape=[output_nums], dtype=tf.float32, initializer=tf.zeros_initializer)
+        # part_2_bias = tf.nn.bias_add(part_2, part_2_bias_weights, data_format='NCHW', name='part_2_bias')
+        part_2_relu = tf.nn.leaky_relu(part_2, name='part_2_leaky_relu')
 
         part_3 = deformable_conv2d(features, [7, 7], output_nums, input_nums, [1, 1], batch_size, image_height=image_height, image_weight=image_weight, index=3)
-        part_3_relu = tf.nn.relu(part_3, name='part_3_relu')
+        # part_3_bias_weights = tf.get_variable(name='part_3_bias_weights', shape=[output_nums], dtype=tf.float32, initializer=tf.zeros_initializer)
+        # part_3_bias = tf.nn.bias_add(part_3, part_3_bias_weights, data_format='NCHW', name='part_3_bias')
+        part_3_relu = tf.nn.leaky_relu(part_3, name='part_3_leaky_relu')
 
     output = tf.concat([part_1_relu, part_2_relu, part_3_relu], axis=1, name='deformable_inception_concat_' + str(index))
     return output
@@ -188,11 +196,11 @@ def DME_inception(features, index, output_nums, input_nums, batch_size, image_he
 def DME_back_end(features, input_nums, batch_size, image_height, image_weight):
     features_transpose = tf.transpose(features, [0, 3, 1, 2])
     net_inception_1 = DME_inception(features_transpose, 1, 256, input_nums, batch_size, image_height=image_height, image_weight=image_weight)
-    net_conv_1x1_1 = slim.conv2d(net_inception_1, 256, 1, 1, data_format='NCHW')
+    net_conv_1x1_1 = slim.conv2d(net_inception_1, 256, 1, 1, data_format='NCHW', activation_fn=tf.nn.leaky_relu)
     net_inception_2 = DME_inception(net_conv_1x1_1, 2, 128, 256, batch_size, image_height=image_height, image_weight=image_weight)
-    net_conv_1x1_2 = slim.conv2d(net_inception_2, 128, 1, 1, data_format='NCHW')
+    net_conv_1x1_2 = slim.conv2d(net_inception_2, 128, 1, 1, data_format='NCHW', activation_fn=tf.nn.leaky_relu)
     net_inception_3 = DME_inception(net_conv_1x1_2, 3, 64, 128, batch_size, image_height=image_height, image_weight=image_weight)
-    net_conv_1x1_3 = slim.conv2d(net_inception_3, 1, 1, 1, data_format='NCHW')
+    net_conv_1x1_3 = slim.conv2d(net_inception_3, 1, 1, 1, data_format='NCHW', activation_fn=tf.nn.leaky_relu)
     output = tf.transpose(net_conv_1x1_3, [0, 2, 3, 1])
     return output, net_inception_1, net_conv_1x1_1
 
@@ -209,6 +217,5 @@ def DME_model(features, batch_size, image_height, image_weight):
     tmp_front_end = tf.reduce_sum(front_end, reduction_indices=[1, 2, 3])
     tmp_inception_value = tf.reduce_sum(tmp_inception, reduction_indices=[1, 2, 3])
     tmp_1x1_value = tf.reduce_sum(tmp_1x1, reduction_indices=[1, 2, 3])
-
 
     return feature_map, front_g, tmp_front_end, tmp_inception_value, tmp_1x1_value

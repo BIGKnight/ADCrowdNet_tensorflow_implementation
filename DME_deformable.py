@@ -141,6 +141,7 @@ def deformable_conv2d(features, kernel_size, output_nums, input_nums, stride, ba
 
     # mask_sigmoid = tf.constant([1. for i in range(batch_size * kernel_arg_nums * image_height * image_weight)], shape=[batch_size, kernel_arg_nums, image_height, image_weight], name='mask_part_' + str(index))
 
+    # it seems like that the tf framework will occur some error once we inject a constant into out custom op so I set the static mask value as a variable which has the parameter: trainable=False
     mask_sigmoid = tf.get_variable(name='mask_part_' + str(index), shape=[batch_size, kernel_arg_nums, image_height, image_weight], dtype=tf.float32, initializer=tf.ones_initializer, trainable=False)
 
     # must set xavier initializer manually, adopt the uniform version

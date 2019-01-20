@@ -49,6 +49,40 @@ __device__ DType dmcn_im2col_bilinear(
 
   DType val = (w1 * v1 + w2 * v2 + w3 * v3 + w4 * v4);
   return val;
+
+//    int h_low = floor(h);
+//    int w_low = floor(w);
+//    int h_high;
+//    int w_high;
+//    if (h_low >= height - 1) {
+//        h_high = h_low = height - 1;
+//        h = (DType)h_low;
+//    }
+//    else {
+//        h_high = h_low + 1;
+//    }
+//
+//    if (w_low >= width - 1) {
+//        w_high = w_low = width - 1;
+//        w = (DType)w_low;
+//    }
+//    else {
+//        w_high = w_low + 1;
+//    }
+//
+//    DType lh = h - h_low;
+//    DType lw = w - w_low;
+//    DType hh = 1 - lh, hw = 1 - lw;
+//
+//    DType v1 = bottom_data[h_low * data_width + w_low];
+//    DType v2 = bottom_data[h_low * data_width + w_high];
+//    DType v3 = bottom_data[h_high * data_width + w_low];
+//    DType v4 = bottom_data[h_high * data_width + w_high];
+//    DType w1 = hh * hw, w2 = hh * lw, w3 = lh * hw, w4 = lh * lw;
+//
+//    DType val = (w1 * v1 + w2 * v2 + w3 * v3 + w4 * v4);
+//    return val;
+
 }
 
 template<typename DType>
@@ -178,6 +212,44 @@ __global__ void DeformableConv2DIm2ColKernel(
     DType* data_col){
 
     CUDA_1D_KERNEL_LOOP(index, n) {
+
+//    // index index of output matrix
+//        const int w_col = index % width_col;
+//        const int h_col = (index / width_col) % height_col;
+//        const int c_im = (index / width_col) / height_col;
+//        const int c_col = c_im * kernel_h * kernel_w;
+//
+//        // compute deformable group index
+//        const int deformable_group_index = c_im / channel_per_deformable_group;
+//
+//        const int h_in = h_col * stride_h - pad_h;
+//        const int w_in = w_col * stride_w - pad_w;
+//        DType* data_col_ptr = data_col + (c_col * height_col + h_col) * width_col + w_col;
+//        const DType* data_im_ptr = data_im + (c_im * height + h_in) * width + w_in;
+//        const DType* data_offset_ptr = data_offset + deformable_group_index * 2 * kernel_h * kernel_w * height_col * width_col;
+//
+//
+//        for (int i = 0; i < kernel_h; ++i) {
+//            for (int j = 0; j < kernel_w; ++j) {
+//                const int data_offset_h_ptr = ((2 * (i * kernel_w + j)) * height_col + h_col) * width_col + w_col;
+//                const int data_offset_w_ptr = ((2 * (i * kernel_w + j) + 1) * height_col + h_col) * width_col + w_col;
+//                const DType offset_h = data_offset_ptr[data_offset_h_ptr];
+//                const DType offset_w = data_offset_ptr[data_offset_w_ptr];
+//                DType val = static_cast<DType>(0);
+//                const DType h_im = h_in + i * dilation_h + offset_h;
+//                const DType w_im = w_in + j * dilation_w + offset_w;
+//                if (h_im > -1 && w_im > -1 && h_im < height && w_im < width) {
+//                    const DType map_h = i * dilation_h + offset_h;
+//                    const DType map_w = j * dilation_w + offset_w;
+//                    const int cur_height = height - h_in;
+//                    const int cur_width = width - w_in;
+//                    val = dmcn_im2col_bilinear(data_im_ptr, width, cur_height, cur_width, map_h, map_w);
+//                }
+//                *data_col_ptr = val;
+//                data_col_ptr += height_col * width_col;
+//            }
+//        }
+//
     // index index of output matrix
     const int w_col = index % width_col;
     const int h_col = (index / width_col) % height_col;
@@ -192,11 +264,11 @@ __global__ void DeformableConv2DIm2ColKernel(
     const int w_in = w_col * stride_w - pad_w;
 
     DType* data_col_ptr = data_col + ((c_col * batch_size + b_col) * height_col + h_col) * width_col + w_col;
-    //const DType* data_im_ptr = data_im + ((b_col * num_channels + c_im) * height + h_in) * width + w_in;
+//    const DType* data_im_ptr = data_im + ((b_col * num_channels + c_im) * height + h_in) * width + w_in;
     const DType* data_im_ptr = data_im + (b_col * num_channels + c_im) * height * width;
-    const DType* data_offset_ptr = data_offset + (b_col * deformable_group + deformable_group_index) * 2 * kernel_h * kernel_w * height_col * width_col;
+    const DType* data_offset_ptr = data_offset + (b_col * deformable_group + deformable_group_index) * 2 * kernel_h * kernel_w * height_col * width_col; //
 
-    const DType* data_mask_ptr = data_mask + (b_col *  deformable_group + deformable_group_index) * kernel_h * kernel_w * height_col * width_col;
+    const DType* data_mask_ptr = data_mask + (b_col *  deformable_group + deformable_group_index) * kernel_h * kernel_w * height_col * width_col; //
 
     for (int i = 0; i < kernel_h; ++i) {
       for (int j = 0; j < kernel_w; ++j) {
@@ -209,13 +281,13 @@ __global__ void DeformableConv2DIm2ColKernel(
         DType val = static_cast<DType>(0);
         const DType h_im = h_in + i * dilation_h + offset_h;
         const DType w_im = w_in + j * dilation_w + offset_w;
-        //if (h_im >= 0 && w_im >= 0 && h_im < height && w_im < width) {
+//        if (h_im >= 0 && w_im >= 0 && h_im < height && w_im < width) {
         if (h_im > -1 && w_im > -1 && h_im < height && w_im < width) {
-          //const DType map_h = i * dilation_h + offset_h;
-          //const DType map_w = j * dilation_w + offset_w;
-          //const int cur_height = height - h_in;
-          //const int cur_width = width - w_in;
-          //val = dmcn_im2col_bilinear(data_im_ptr, width, cur_height, cur_width, map_h, map_w);
+//          const DType map_h = i * dilation_h + offset_h;
+//          const DType map_w = j * dilation_w + offset_w;
+//          const int cur_height = height - h_in;
+//          const int cur_width = width - w_in;
+//          val = dmcn_im2col_bilinear(data_im_ptr, width, cur_height, cur_width, map_h, map_w);
           val = dmcn_im2col_bilinear(data_im_ptr, width, height, width, h_im, w_im);
         }
         *data_col_ptr = val * mask;

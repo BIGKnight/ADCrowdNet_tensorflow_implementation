@@ -289,7 +289,7 @@ class DeformableConv2DOp : public OpKernel{
         T* col_buffer_ptr = col_buffer.template flat<T>().data();
 
         int32_t M = conv_out_channels_ / group_; // filter的数量
-        int32_t N = im2col_step_ * conv_out_spatial_dim_; // 我不是很理解这里的im2col_step_
+        int32_t N = im2col_step_ * conv_out_spatial_dim_;
         int32_t K = kernel_dim_; // 卷积的参数个数
 
         Tensor weight_3d;
@@ -305,6 +305,7 @@ class DeformableConv2DOp : public OpKernel{
          * 这样的话下面计算矩阵乘法的时候直接就写到这个输出里了
          * 但是注意的是作者实现的时候划分ｓｔｅｐ，这个时候其实是往ｓｈａｐｅ为｛num_ / im2col_step_, group_, M, N｝的输出里写的，所以最后一定要置换一下维度的位置
          * **/
+        setZero<Device, T>()(d, ProdShape(out_shape, 0 ,out_shape.dims()), output_temp_4d_ptr);
         TShape pads;
         pads.push_back(dimensions.pad_rows);
         pads.push_back(dimensions.pad_cols);

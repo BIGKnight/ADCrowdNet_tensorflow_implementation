@@ -74,6 +74,7 @@ def _deformable_conv2d_back_prop(op, grad):
         filter=filter,
         offset=offset,
         mask=mask,
+
         out_grad=grad,
         strides=strides,
         num_groups=num_groups, deformable_groups=deformable_groups, im2col_step=im2col_step,
@@ -85,14 +86,17 @@ def _deformable_conv2d_back_prop(op, grad):
 
 
 if __name__ == '__main__':
-    input = tf.constant([6.523843580907851e-21 for i in range(75)], shape=[1, 512, 48, 64])
+    input = tf.constant([1. for i in range(75)], shape=[1, 512, 48, 64])
     # filter = tf.constant([1. for i in range(27)], shape=[256, 512, 3, 3])
-    min = - math.sqrt(6. / (3. * 3. * 512.))
-    max = math.sqrt(6. / (3. * 3. * 512.))
-    filter = tf.get_variable(name='weight_conv', shape=[3, 3, 512, 256], initializer=tf.random_uniform_initializer(min, max))
+    min = - math.sqrt(6. / (7. * 7. * 512.))
+    max = math.sqrt(6. / (7. * 7. * 512.))
+    # filter = tf.get_variable(name='weight_conv', shape=[3, 3, 512, 256], initializer=tf.random_uniform_initializer(min, max))
+    filter = tf.get_variable(name='weight_conv',
+                             shape=[5, 5, 512, 256], initializer=tf.ones_initializer)
     filter_deform = tf.transpose(filter, [3, 2, 0, 1])
-    offset = tf.constant([0. for i in range(55296)], shape=[1, 18, 48, 64])
-    mask = tf.constant([1. for i in range(27648)], shape=[1, 9, 48, 64])
+
+    offset = tf.constant([0. for i in range(50 * 48 * 64)], shape=[1, 25 * 2, 48, 64])
+    mask = tf.constant([1. for i in range(25*48*64)], shape=[1, 25, 48, 64])
     result = deformable_conv2d_op(
         input=input,
         filter=filter_deform,

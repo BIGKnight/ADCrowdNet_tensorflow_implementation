@@ -2,12 +2,8 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="abd130d7-6acc-4d30-bfab-1cb3a933ee65" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/offset_show.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/DME_deformable.py" beforeDir="false" afterPath="$PROJECT_DIR$/DME_deformable.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/deformable_conv2d_op/deformable_conv2d.cc" beforeDir="false" afterPath="$PROJECT_DIR$/deformable_conv2d_op/deformable_conv2d.cc" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/deformable_conv2d_op/deformable_conv2d.cu.o" beforeDir="false" afterPath="$PROJECT_DIR$/deformable_conv2d_op/deformable_conv2d.cu.o" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/deformable_conv2d_op/deformable_conv2d.so" beforeDir="false" afterPath="$PROJECT_DIR$/deformable_conv2d_op/deformable_conv2d.so" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.ipynb_checkpoints/predict-checkpoint.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/.ipynb_checkpoints/predict-checkpoint.ipynb" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/main.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/main.ipynb" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/predict.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/predict.ipynb" afterDir="false" />
     </list>
@@ -44,21 +40,21 @@
     <session id="-250387311">
       <usages-collector id="statistics.lifecycle.project">
         <counts>
-          <entry key="project.closed" value="1" />
-          <entry key="project.open.time.0" value="1" />
+          <entry key="project.closed" value="2" />
+          <entry key="project.open.time.0" value="2" />
           <entry key="project.open.time.1" value="1" />
           <entry key="project.open.time.21" value="1" />
           <entry key="project.open.time.26" value="1" />
           <entry key="project.open.time.32" value="1" />
           <entry key="project.open.time.35" value="1" />
-          <entry key="project.opened" value="6" />
+          <entry key="project.opened" value="7" />
         </counts>
       </usages-collector>
       <usages-collector id="statistics.file.extensions.open">
         <counts>
           <entry key="cc" value="10" />
           <entry key="h" value="10" />
-          <entry key="ipynb" value="26" />
+          <entry key="ipynb" value="30" />
           <entry key="md" value="2" />
           <entry key="png" value="1" />
           <entry key="py" value="31" />
@@ -69,7 +65,7 @@
         <counts>
           <entry key="Bash" value="3" />
           <entry key="C++" value="20" />
-          <entry key="IPNB" value="26" />
+          <entry key="IPNB" value="30" />
           <entry key="Image" value="1" />
           <entry key="Markdown" value="2" />
           <entry key="PLAIN_TEXT" value="3" />
@@ -82,7 +78,7 @@
           <entry key="dummy" value="11" />
           <entry key="h" value="1336" />
           <entry key="md" value="1363" />
-          <entry key="py" value="8640" />
+          <entry key="py" value="8653" />
           <entry key="sh" value="108" />
         </counts>
       </usages-collector>
@@ -91,7 +87,7 @@
           <entry key="C++" value="4574" />
           <entry key="Markdown" value="1363" />
           <entry key="PLAIN_TEXT" value="119" />
-          <entry key="Python" value="8640" />
+          <entry key="Python" value="8653" />
         </counts>
       </usages-collector>
     </session>
@@ -101,8 +97,8 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/DME_deformable.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="1699">
-              <caret line="197" column="30" selection-start-line="197" selection-start-column="30" selection-end-line="197" selection-end-column="30" />
+            <state relative-caret-position="304">
+              <caret line="83" column="36" selection-start-line="83" selection-start-column="36" selection-end-line="83" selection-end-column="36" />
               <folding>
                 <element signature="e#1#24#0" expanded="true" />
               </folding>
@@ -110,11 +106,11 @@
           </provider>
         </entry>
       </file>
-      <file pinned="false" current-in-tab="false">
+      <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/predict.ipynb">
           <provider selected="true" editor-type-id="ipnb-editor">
             <state>
-              <selected id="0" />
+              <selected id="5" />
             </state>
           </provider>
         </entry>
@@ -122,7 +118,7 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/main.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="240">
+            <state relative-caret-position="330">
               <caret line="22" column="43" selection-start-line="22" selection-start-column="43" selection-end-line="22" selection-end-column="43" />
               <folding>
                 <element signature="e#0#23#0" expanded="true" />
@@ -134,8 +130,8 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/deformable_conv2d_op/deformable_conv2d.h">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="-2094">
-              <caret line="32" column="18" lean-forward="true" selection-start-line="32" selection-start-column="18" selection-end-line="32" selection-end-column="18" />
+            <state relative-caret-position="480">
+              <caret line="32" column="18" selection-start-line="32" selection-start-column="18" selection-end-line="32" selection-end-column="18" />
             </state>
           </provider>
         </entry>
@@ -145,22 +141,21 @@
           <provider selected="true" editor-type-id="split-provider[text-editor;markdown-preview-editor]">
             <state split_layout="SPLIT">
               <first_editor relative-caret-position="165">
-                <caret line="11" lean-forward="true" selection-start-line="11" selection-end-line="11" />
+                <caret line="11" selection-start-line="11" selection-end-line="11" />
               </first_editor>
               <second_editor />
             </state>
           </provider>
         </entry>
       </file>
-      <file pinned="false" current-in-tab="true">
+      <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/offset_show.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="225">
-              <caret line="15" column="105" selection-start-line="15" selection-start-column="105" selection-end-line="15" selection-end-column="105" />
+            <state relative-caret-position="1710">
+              <caret line="114" column="26" selection-start-line="114" selection-start-column="26" selection-end-line="114" selection-end-column="26" />
               <folding>
                 <element signature="e#0#23#0" expanded="true" />
-                <marker date="1548505416424" expanded="true" signature="1468:1703" ph="..." />
-                <marker date="1548505416424" expanded="true" signature="1737:1969" ph="..." />
+                <marker date="1548505468432" expanded="true" signature="1478:1713" ph="..." />
               </folding>
             </state>
           </provider>
@@ -169,7 +164,7 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/deformable_conv2d_op/deformable_conv2d_utils.h">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="471">
+            <state relative-caret-position="6525">
               <caret line="435" selection-start-line="435" selection-end-line="441" selection-end-column="1" />
             </state>
           </provider>
@@ -178,7 +173,7 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/deformable_conv2d_op/test_deformable.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="220">
+            <state relative-caret-position="1305">
               <caret line="94" column="40" selection-start-line="94" selection-start-column="40" selection-end-line="94" selection-end-column="40" />
             </state>
           </provider>
@@ -237,7 +232,6 @@
   <component name="IdeDocumentHistory">
     <option name="CHANGED_PATHS">
       <list>
-        <option value="$PROJECT_DIR$/predict.ipynb" />
         <option value="$PROJECT_DIR$/deformable_conv2d_op/g++_compile.sh" />
         <option value="$PROJECT_DIR$/deformable_conv2d_op/deformable_conv2d.py" />
         <option value="$PROJECT_DIR$/deformable_conv2d_op/deformable_conv2d_utils.h" />
@@ -251,9 +245,10 @@
         <option value="$PROJECT_DIR$/DME.py" />
         <option value="$PROJECT_DIR$/deformable_conv2d_op/deformable_conv2d.cu.cc" />
         <option value="$PROJECT_DIR$/README.md" />
-        <option value="$PROJECT_DIR$/DME_deformable.py" />
         <option value="$PROJECT_DIR$/deformable_conv2d_op/deformable_conv2d.cc" />
         <option value="$PROJECT_DIR$/offset_show.py" />
+        <option value="$PROJECT_DIR$/DME_deformable.py" />
+        <option value="$PROJECT_DIR$/predict.ipynb" />
       </list>
     </option>
   </component>
@@ -274,7 +269,6 @@
       <foldersAlwaysOnTop value="true" />
     </navigator>
     <panes>
-      <pane id="Scope" />
       <pane id="ProjectPane">
         <subPane>
           <expand>
@@ -291,6 +285,7 @@
           <select />
         </subPane>
       </pane>
+      <pane id="Scope" />
     </panes>
   </component>
   <component name="PropertiesComponent">
@@ -461,12 +456,12 @@
     <frame x="1985" y="-4" width="1855" height="1084" extended-state="6" />
     <editor active="true" />
     <layout>
-      <window_info active="true" content_ui="combo" id="Project" order="0" visible="true" weight="0.17634052" />
+      <window_info active="true" content_ui="combo" id="Project" order="0" visible="true" weight="0.17855169" />
       <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
       <window_info id="Favorites" order="2" side_tool="true" />
       <window_info anchor="bottom" id="Message" order="0" />
       <window_info anchor="bottom" id="Find" order="1" weight="0.3294979" />
-      <window_info anchor="bottom" id="Run" order="2" visible="true" weight="0.38912135" />
+      <window_info anchor="bottom" id="Run" order="2" weight="0.38912135" />
       <window_info anchor="bottom" id="Debug" order="3" weight="0.4" />
       <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
       <window_info anchor="bottom" id="Inspection" order="5" weight="0.4" />
@@ -565,16 +560,7 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/predict.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="847">
-          <caret line="57" column="9" selection-start-line="57" selection-start-column="9" selection-end-line="57" selection-end-column="9" />
-          <folding>
-            <element signature="e#0#23#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
+    <entry file="file://$PROJECT_DIR$/predict.py" />
     <entry file="file://$PROJECT_DIR$/DME.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="705">
@@ -582,38 +568,7 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/main.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="240">
-          <caret line="22" column="43" selection-start-line="22" selection-start-column="43" selection-end-line="22" selection-end-column="43" />
-          <folding>
-            <element signature="e#0#23#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/main.ipynb">
-      <provider selected="true" editor-type-id="ipnb-editor">
-        <state>
-          <selected id="0" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/deformable_conv2d_op/deformable_conv2d.h">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-2094">
-          <caret line="32" column="18" lean-forward="true" selection-start-line="32" selection-start-column="18" selection-end-line="32" selection-end-column="18" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/deformable_conv2d_op/deformable_conv2d_utils.h">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="471">
-          <caret line="435" selection-start-line="435" selection-end-line="441" selection-end-column="1" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/predict.ipynb">
       <provider selected="true" editor-type-id="ipnb-editor">
         <state>
           <selected id="0" />
@@ -627,29 +582,7 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/README.md">
-      <provider selected="true" editor-type-id="split-provider[text-editor;markdown-preview-editor]">
-        <state split_layout="SPLIT">
-          <first_editor relative-caret-position="165">
-            <caret line="11" lean-forward="true" selection-start-line="11" selection-end-line="11" />
-          </first_editor>
-          <second_editor />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/img.png">
-      <provider selected="true" editor-type-id="images" />
-    </entry>
-    <entry file="file://$PROJECT_DIR$/DME_deformable.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="1699">
-          <caret line="197" column="30" selection-start-line="197" selection-start-column="30" selection-end-line="197" selection-end-column="30" />
-          <folding>
-            <element signature="e#1#24#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
+    <entry file="file://$PROJECT_DIR$/img.png" />
     <entry file="file://$PROJECT_DIR$/deformable_conv2d_op/deformable_conv2d.cu.cc">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="306">
@@ -657,22 +590,72 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/deformable_conv2d_op/test_deformable.py">
+    <entry file="file://$PROJECT_DIR$/main.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="220">
-          <caret line="94" column="40" selection-start-line="94" selection-start-column="40" selection-end-line="94" selection-end-column="40" />
+        <state relative-caret-position="330">
+          <caret line="22" column="43" selection-start-line="22" selection-start-column="43" selection-end-line="22" selection-end-column="43" />
+          <folding>
+            <element signature="e#0#23#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/deformable_conv2d_op/deformable_conv2d.h">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="480">
+          <caret line="32" column="18" selection-start-line="32" selection-start-column="18" selection-end-line="32" selection-end-column="18" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/README.md">
+      <provider selected="true" editor-type-id="split-provider[text-editor;markdown-preview-editor]">
+        <state split_layout="SPLIT">
+          <first_editor relative-caret-position="165">
+            <caret line="11" selection-start-line="11" selection-end-line="11" />
+          </first_editor>
+          <second_editor />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/offset_show.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="225">
-          <caret line="15" column="105" selection-start-line="15" selection-start-column="105" selection-end-line="15" selection-end-column="105" />
+        <state relative-caret-position="1710">
+          <caret line="114" column="26" selection-start-line="114" selection-start-column="26" selection-end-line="114" selection-end-column="26" />
           <folding>
             <element signature="e#0#23#0" expanded="true" />
-            <marker date="1548505416424" expanded="true" signature="1468:1703" ph="..." />
-            <marker date="1548505416424" expanded="true" signature="1737:1969" ph="..." />
+            <marker date="1548505468432" expanded="true" signature="1478:1713" ph="..." />
           </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/deformable_conv2d_op/deformable_conv2d_utils.h">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="6525">
+          <caret line="435" selection-start-line="435" selection-end-line="441" selection-end-column="1" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/deformable_conv2d_op/test_deformable.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="1305">
+          <caret line="94" column="40" selection-start-line="94" selection-start-column="40" selection-end-line="94" selection-end-column="40" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/DME_deformable.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="304">
+          <caret line="83" column="36" selection-start-line="83" selection-start-column="36" selection-end-line="83" selection-end-column="36" />
+          <folding>
+            <element signature="e#1#24#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/predict.ipynb">
+      <provider selected="true" editor-type-id="ipnb-editor">
+        <state>
+          <selected id="5" />
         </state>
       </provider>
     </entry>

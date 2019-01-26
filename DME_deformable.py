@@ -81,7 +81,7 @@ def _deformable_conv2d_back_prop(op, grad):
         padding=pads,
         data_format=data_format,
         dilations=dilations)
-    return [data_grad, filter_grad, 0.1 * offset_grad, 0.1 * mask_grad] # List of 4 Tensor, since we have 4 input
+    return [data_grad, filter_grad, offset_grad, mask_grad] # List of 4 Tensor, since we have 4 input
 
 
 #
@@ -102,7 +102,7 @@ def _deformable_conv2d_back_prop(op, grad):
 
 
 # the kernel_size and stride must be 2 integers which represents the directions of height and weight
-def deformable_conv2d(features, kernel_size, output_nums, input_nums, stride, index, offset_Trainable=True, mask_Trainable=False):
+def deformable_conv2d(features, kernel_size, output_nums, input_nums, stride, index, offset_Trainable=True, mask_Trainable=True):
     kernel_arg_nums = kernel_size[0] * kernel_size[1]
     offset = slim.conv2d(
         features,
